@@ -161,18 +161,16 @@ std::ostream& operator<< (std::ostream& stream, const std::vector<double>& vec)
 
 std::ostream& operator<< (std::ostream& stream, const intersection::Route& route)
 {
-    // std::cerr << "----------------- Route -----------------\n";
-    stream << route.outputId << "\n";
-    // stream << "Output id: " << route.outputId << "\n";
-    // stream << "Cost per bus: " << route.cost << "\n";
-    // stream << "Available buses: ["
-    //     << route.busesPerSlot[0] << ", "
-    //     << route.busesPerSlot[1] << ", "
-    //     << route.busesPerSlot[2] << "]\n";
-    // stream << "Numbers of targets hit (depending on #buses): " << route.benefits << "\n";
-    // stream << "Number of polyline points: " << route.polyline.size() << "\n";
-    // stream << "Bounding box: " << route.box << "\n";
-    stream << route.benefits << "\n";
+    std::cerr << "----------------- Route -----------------\n";
+    stream << "Output id: " << route.outputId << "\n";
+    stream << "Cost per bus: " << route.cost << "\n";
+    stream << "Available buses: ["
+        << route.busesPerSlot[0] << ", "
+        << route.busesPerSlot[1] << ", "
+        << route.busesPerSlot[2] << "]\n";
+    stream << "Numbers of targets hit (depending on #buses): " << route.benefits << "\n";
+    stream << "Number of polyline points: " << route.polyline.size() << "\n";
+    stream << "Bounding box: " << route.box << "\n";
 
     return stream;
 }
