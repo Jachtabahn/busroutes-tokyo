@@ -1,91 +1,56 @@
-#include <cstdio>
-#include <cstring>
-#include <cstdlib>
 #include <cmath>
-#include <cctype>
-#include <ctime>
 #include <algorithm>
 #include <map>
 #include <vector>
-#include <string>
 #include <sstream>
 #include <fstream>
-
 #include <iostream>
 #include <memory>
-#include <limits>
-#include <stdexcept>
-#include <boost/format.hpp>
 
-namespace intersection
+double since(clock_t start)
 {
-    // constants
-    const int TIMESLOTS = 3;
-    const int MAX_BUSES = 4;
-
-    struct Region
-    {
-        std::string meshId = "NONE";
-        std::array<double, TIMESLOTS> numTargets {0., 0., 0.};
-        std::vector<std::array<double, 2>> polygon;
-        std::array<double, 2> extremeX {std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()};
-        std::array<double, 2> extremeY {std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()};
-
-        Region() { }
-    };
-
-    struct Route
-    {
-        std::string outputId;
-        double cost;
-        double benefits[MAX_BUSES];
-
-        int slotBuses[TIMESLOTS];
-        std::vector<std::array<double, 2>> polyline;
-
-        Route() { }
-
-        Route(std::string outputId, double cost, double benefits[MAX_BUSES])
-        {
-            this->outputId = outputId;
-            this->cost = cost;
-            for (int i = 0; i < MAX_BUSES; ++i)
-            {
-                this->benefits[i] = benefits[i];
-            }
-        }
-    };
+    return 1000.*double(clock() - start) / CLOCKS_PER_SEC;
 }
+
+#include "intersection.hpp"
 
 #include "parse.hpp"
 
-int main()
+struct Solution
 {
     std::vector<std::unique_ptr<intersection::Region>> regions;
     std::vector<std::unique_ptr<intersection::Route>> routes;
     double budget;
 
-    clock_t start = clock();
-    parse::input(regions, routes, budget);
-    std::cerr << "Total runtime is " << 1000.*double(clock() - start) / CLOCKS_PER_SEC << "ms" << std::endl;
+    intersection::Box routesBox {intersection::supremum, intersection::infimum};
+} solution;
 
-    /*
+int main()
+{
+    std::cerr.precision(std::numeric_limits< double >::max_digits10);
+
+    clock_t total_start = clock();
+    clock_t start = clock();
+    parse::input(solution.regions, solution.routes, solution.budget, solution.routesBox);
+    std::cerr << "Parsing of all input took " << since(start) << "ms" << std::endl;
+
+    start = clock();
+    intersection::all(solution.regions, solution.routes);
+    std::cerr << "Evaluating all routes took " << since(start) << "ms" << std::endl;
+
+    std::cerr << "\n" << std::endl;
     for (size_t i = 0; i < 6; ++i)
     {
-        auto& region = *regions[i];
-        std::cerr << "----------------- Region -----------------\n";
-        std::cerr << "Id: " << i << "\n";
-        std::cerr << "Mesh id: " << region.meshId << "\n";
-        std::cerr << "Number of targets in time slots:"
-            << " " << region.numTargets[0]
-            << " " << region.numTargets[1]
-            << " " << region.numTargets[2]
-            << "\n";
-        std::cerr << "Number of polygon points: " << region.polygon.size() << "\n";
-        std::cerr << "Minimum point of the polygon: (" << region.extremeX[0] << ", " << region.extremeY[0] << ")\n"
-            << "Maximum point of the polygon: (" << region.extremeX[1] << ", " << region.extremeY[1] << ")\n";
+        auto& region = *solution.regions[i];
+        std::cerr << region;
     }
-    */
+    std::cerr << "\n" << std::endl;
+    for (size_t i = 0, size = solution.routes.size(); i < size; ++i)
+    {
+        auto& route = *solution.routes[i];
+        std::cerr << route;
+    }
+    std::cerr << "\nThe box enclosing all routes is " << solution.routesBox << std::endl;
 
     // Output our solution
     std::map<std::string, int> allocations;
@@ -94,6 +59,9 @@ int main()
     {
         printf("%s,%d\n", iter.first.c_str(), iter.second);
     }
+
+    std::cerr << "----------------------------------\n";
+    std::cerr << "Total runtime is " << since(total_start) << "ms" << std::endl;
 
     return 0;
 }
