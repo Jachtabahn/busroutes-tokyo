@@ -23,11 +23,13 @@ struct Solution
     double budget;
 
     intersection::Box routesBox {intersection::supremum, intersection::infimum};
+
+    std::map<std::string, int> allocations;
 } solution;
 
 int main()
 {
-    std::cerr.precision(std::numeric_limits< double >::max_digits10);
+    std::cerr.precision(std::numeric_limits<double>::max_digits10);
 
     clock_t total_start = clock();
     clock_t start = clock();
@@ -36,6 +38,10 @@ int main()
 
     start = clock();
     intersection::all(solution.regions, solution.routes);
+    std::cerr << "Evaluating all routes took " << since(start) << "ms" << std::endl;
+
+    start = clock();
+    knapsack::values(solution.regions, solution.routes, solution.budget, solution.allocations);
     std::cerr << "Evaluating all routes took " << since(start) << "ms" << std::endl;
 
     std::cerr << "\n" << std::endl;
@@ -53,9 +59,8 @@ int main()
     std::cerr << "\nThe box enclosing all routes is " << solution.routesBox << std::endl;
 
     // Output our solution
-    std::map<std::string, int> allocations;
-    allocations["1"] = 1;
-    for (const auto& iter : allocations)
+    solution.allocations["1"] = 1;
+    for (const auto& iter : solution.allocations)
     {
         printf("%s,%d\n", iter.first.c_str(), iter.second);
     }
