@@ -33,13 +33,14 @@ def computeGcd(x, y):
         x, y = y, x % y
     return x
 
+# determine the greatest common divisor of the costs
 unique_costs = list(set(costs))
 gcd = int(unique_costs[0])
 for c in unique_costs[1:]:
     gcd = computeGcd(gcd, int(c))
 print("The greatest common divisor is {}".format(gcd))
 
-# Determine all sums of costs, starting at the minimal cost, taking a few too many cost sums for simplification
+# determine all sums of costs, starting at the minimal cost, taking a few too many cost sums for simplification
 sub_budgets = set(unique_costs)
 r = min_cost + gcd
 while r <= total_budget:
