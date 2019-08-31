@@ -7,8 +7,8 @@ namespace intersection
     const int TIMESLOTS = 3;
     const int MAX_BUSES = 4;
     const double EPSILON = 1e-8;
-    const Point infimum = Point{-std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()};
-    const Point supremum = Point{std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()};
+    const Point infimum {-std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()};
+    const Point supremum {std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()};
     const int MIN = 0;
     const int MAX = 1;
     const int X = 0;
@@ -125,11 +125,14 @@ namespace intersection
 
                 for (int s = 0; s < TIMESLOTS; ++s)
                 {
-                    for (int b = 0; b < route->busesPerSlot[s]; ++b)
+                    if (route->busesPerSlot[s] == 0) { continue; }
+                    for (int b = 0; b < maxBuses; ++b)
                     {
-                        route->benefits[b] += region->numTargets[s];
+                        auto actualCount = std::min(b+1, route->busesPerSlot[s]);
+                        route->benefits[b] += actualCount*region->numTargets[s];
                     }
                 }
+
             }
         }
     }
