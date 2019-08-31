@@ -62,8 +62,10 @@ namespace parse
                 double x, y;
                 while (i + 2 < tokens.size())
                 {
-                    assertion(parse::string(tokens[i + 1], x), "Wrong coordinates");
-                    assertion(parse::string(tokens[i + 2], y), "Wrong coordinates");
+                    auto success = parse::string(tokens[i + 1], x);
+                    assertion(success, "Wrong coordinates");
+                    success = parse::string(tokens[i + 2], y);
+                    assertion(success, "Wrong coordinates");
                     i += 2;
                     region->polygon.push_back(intersection::Point{x, y});
 
@@ -132,46 +134,57 @@ namespace parse
         std::cerr << "I found " << regions.size() << " regions." << std::endl;
     }
 
-    std::unique_ptr<intersection::Route> route(const std::vector<std::string>& tokens)
+    std::unique_ptr<intersection::Route> route(const std::vector<std::string>& tokens, double& minCost, double& costGcd)
     {
         std::unique_ptr<intersection::Route> route = std::make_unique<intersection::Route>();
 
         for (size_t i = 0; i < tokens.size(); ++i)
         {
             auto& token = tokens[i];
-            auto& nextToken = tokens[i+1];
             if (token == "RouteID")
             {
                 assertion(i + 1 < tokens.size(), "Missing route outputId!");
-                route->outputId = nextToken;
+                route->outputId = tokens[i+1];
             }
             else if (token == "Cost")
             {
                 assertion(i + 1 < tokens.size(), "Missing route outputId!");
-                parse::string(nextToken, route->cost);
+                parse::string(tokens[i+1], route->cost);
+
+                if (route->cost < minCost)
+                {
+                    minCost = route->cost;
+                }
+
+                costGcd = static_cast<double>(knapsack::computeGcd(static_cast<int>(costGcd), static_cast<int>(route->cost)));
             }
             else if (token == "TZ2_Max")
             {
                 assertion(i + 1 < tokens.size(), "Missing TZ2_Max!");
-                parse::string(nextToken, route->busesPerSlot[0]);
+                parse::string(tokens[i+1], route->busesPerSlot[0]);
+                assertion(route->busesPerSlot[0] >= 0, "Negative number of buses per time slot!");
             }
             else if (token == "TZ3_Max")
             {
                 assertion(i + 1 < tokens.size(), "Missing TZ3_Max!");
-                parse::string(nextToken, route->busesPerSlot[1]);
+                parse::string(tokens[i+1], route->busesPerSlot[1]);
+                assertion(route->busesPerSlot[1] >= 0, "Negative number of buses per time slot!");
             }
             else if (token == "TZ4_Max")
             {
                 assertion(i + 1 < tokens.size(), "Missing TZ4_Max!");
-                parse::string(nextToken, route->busesPerSlot[2]);
+                parse::string(tokens[i+1], route->busesPerSlot[2]);
+                assertion(route->busesPerSlot[2] >= 0, "Negative number of buses per time slot!");
             }
             else if (token == "coordinates")
             {
                 double x, y;
                 while (i + 2 < tokens.size())
                 {
-                    assertion(parse::string(tokens[i + 1], x), "Wrong coordinates");
-                    assertion(parse::string(tokens[i + 2], y), "Wrong coordinates");
+                    auto success = parse::string(tokens[i + 1], x);
+                    assertion(success, "Wrong coordinates");
+                    success = parse::string(tokens[i + 2], y);
+                    assertion(success, "Wrong coordinates");
                     i += 2;
                     route->polyline.push_back(intersection::Point{x, y});
 
@@ -186,7 +199,12 @@ namespace parse
         return route;
     }
 
-    void allRoutes(std::vector<std::unique_ptr<intersection::Route>>& routes, intersection::Box& routesBox, std::string filename)
+    void allRoutes(
+        std::vector<std::unique_ptr<intersection::Route>>& routes,
+        intersection::Box& routesBox,
+        double& minCost,
+        double& costGcd,
+        std::string filename)
     {
         std::ifstream stream {filename};
         assertion(stream.is_open(), "Route geojson file missing!");
@@ -199,7 +217,7 @@ namespace parse
             if (tokens.size() >= 2 && tokens[0] == "type" && tokens[1] == "Feature")
             {
                 // this is a route
-                routes.push_back(parse::route(tokens));
+                routes.push_back(parse::route(tokens, minCost, costGcd));
                 auto& route = routes.back();
 
                 if (route->box[0][0] < routesBox[0][0]) { routesBox[0][0] = route->box[0][0]; }
@@ -257,6 +275,8 @@ namespace parse
         std::vector<std::unique_ptr<intersection::Region>>& regions,
         std::vector<std::unique_ptr<intersection::Route>>& routes,
         double& budget,
+        double& minCost,
+        double& costGcd,
         intersection::Box& routesBox)
     {
         clock_t start = clock();
@@ -303,7 +323,7 @@ namespace parse
         std::cerr << "Parsing the activity probabilities took " << since(start) << "ms" << std::endl;
 
         start = clock();
-        parse::allRoutes(routes, routesBox, routePath);
+        parse::allRoutes(routes, routesBox, minCost, costGcd, routePath);
         std::cerr << "Parsing all the routes took " << since(start) << "ms" << std::endl;
 
         start = clock();
