@@ -1,3 +1,3 @@
 #!/bin/bash
 
-zip busrouting Main.cpp
+zip busproject Main.cpp
