@@ -1,44 +1,78 @@
 namespace knapsack
 {
-    typedef std::array<size_t, double> Index;
+    int computeGcd(int x, int y)
+    {
+        while (y > 0)
+        {
+            auto temp = x % y;
+            x = y;
+            y = temp;
+        }
+        return x;
+    }
 
     void values(
         const std::vector<std::unique_ptr<intersection::Route>>& routes,
-        const double& budget,
-        std::map<std::string, int>& allocations)
+        const double& totalBudget,
+        const double& minCost,
+        const double& costGcd,
+        std::map<std::string, int>& allocation)
     {
-        std::vector<double> subBudgets;
+        // route.benefits[t] is the benefit of buying the first t+1 buses
 
-        std::vector<Index> indices;
-        std::vector<double> values;
-        auto& numRoutes = routes.size();
-        for (int r = 0; r < numRoutes; ++r)
+        double curBudget;
+        std::map<double, std::vector<double>> solution;
+        // solution[totalBudget][first] is the maximum achievable value considering only items up to the 'first' item and using up to 'totalBudget'
+        for (size_t first = 0, numRoutes = routes.size(); first < numRoutes; ++first)
         {
-            auto& route = routes[r];
-            for (auto curBudgetIt = subBudgets.begin(), end = subBudgets.end(); curBudgetIt != end; ++curBudgetIt)
+            auto& route = routes[first];
+            for (curBudget = minCost; curBudget <= totalBudget; curBudget += costGcd)
             {
-                auto& curBudget = *curBudgetIt;
-                // auto maxValue =
+                // this is the value we get when taking none of this item type
+                auto maxValue = first > 0 ? solution[curBudget][first-1] : 0.0;
+
+                // we want to figure out how many of this item type we need to maximize the value
+                auto takeBudget {curBudget};
+                for (size_t takeIndex = 0; takeIndex < route->benefits.size() && takeBudget >= route->cost; ++takeIndex)
+                {
+                    takeBudget -= route->cost;
+                    auto countValue = (first > 0 && takeBudget >= minCost) ? solution[takeBudget][first-1] : 0.0;
+                    countValue += route->benefits[takeIndex];
+                    if (countValue > maxValue) { maxValue = countValue; }
+                }
+
+                if (solution[curBudget].size() == 0)
+                {
+                    solution[curBudget].resize(numRoutes, 0.0);
+                }
+                solution[curBudget][first] = maxValue;
             }
         }
 
+        // now we allocate the items to achieve the value solution[totalBudget][numRoutes]
+        curBudget -= costGcd;
+        std::cerr << "Allocating routes to reach " << solution[curBudget][routes.size()-1] << " targets." << std::endl;
+        // at the moment, curBudget is the biggest key of solution
+        for (int last = routes.size()-1; last >= 0 && curBudget >= minCost; --last)
+        {
+            // this is the value we want to reach
+            auto maxValue = solution[curBudget][last];
 
-        // solution = dict()
-        // # solution[(first, budget)] is the maximum achievable value considering only items up to the 'first' item, using up to 'budget'
-        // for first in range(num_items):
-        //     item = items[first]
-        //     for cur_budget in sub_budgets:
-        //         # this is the value we get when taking none of this item type
-        //         max_value = solution[(first-1, cur_budget)] if first > 0 else .0
+            // this is the value we get when taking none of this item type
+            auto countValue = last > 0 ? solution[curBudget][last-1] : 0.0;
+            if (maxValue <= countValue) { continue; }
 
-        //         # we want to figure out how many of this item type we need to maximize the value
-        //         for take_count in range(1, len(item.benefits)+1):
-        //             if cur_budget >= take_count*item.cost:
-        //                 take_budget = cur_budget-take_count*item.cost
-        //                 count_value = solution[(first-1, take_budget)] if first > 0 and take_budget >= min_cost else .0
-        //                 count_value += sum(item.benefits[:take_count])
-        //                 if count_value > max_value:
-        //                     max_value = count_value
-        //         solution[(first, cur_budget)] = max_value
+            // now we want to figure out how many of this item type we need to reach the maximum value
+            auto& route = routes[last];
+            int takeCount = 0;
+            while (maxValue > countValue)
+            {
+                curBudget -= route->cost; // this must not make curBudget negative because maxValue is reachable
+                countValue = (last > 0 && curBudget >= minCost) ? solution[curBudget][last-1] : 0.0;
+                countValue += route->benefits[takeCount];
+                ++takeCount;
+            }
+            allocation[route->outputId] = takeCount;
+        }
     }
 }
