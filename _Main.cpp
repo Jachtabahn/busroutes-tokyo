@@ -33,50 +33,53 @@ struct Solution
 
 int main()
 {
-    std::cerr.precision(std::numeric_limits<double>::max_digits10);
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(NULL);
+
+    std::clog.precision(std::numeric_limits<double>::max_digits10);
 
     clock_t total_start = clock();
     clock_t start = clock();
     parse::input(solution.regions, solution.routes, solution.budget, solution.minCost, solution.costGcd, solution.routesBox);
-    std::cerr << "Parsing of all input took " << since(start) << "ms" << std::endl;
-    std::cerr << "The box enclosing all routes is " << solution.routesBox << std::endl;
-    std::cerr << "My total budget is " << solution.budget << std::endl;
-    std::cerr << "The minimum cost is " << solution.minCost << std::endl;
-    std::cerr << "The greatest common divisor of all costs is " << solution.costGcd << std::endl;
+    std::clog << "Parsing of all input took " << since(start) << "ms" << std::endl;
+    // std::clog << "The box enclosing all routes is " << solution.routesBox << std::endl;
+    // std::clog << "My total budget is " << solution.budget << std::endl;
+    // std::clog << "The minimum cost is " << solution.minCost << std::endl;
+    // std::clog << "The greatest common divisor of all costs is " << solution.costGcd << std::endl;
 
     start = clock();
     intersection::all(solution.regions, solution.routes);
-    std::cerr << "Evaluating all routes took " << since(start) << "ms" << std::endl;
+    std::clog << "Evaluating all routes took " << since(start) << "ms" << std::endl;
 
     start = clock();
     knapsack::values(solution.routes, solution.budget, solution.minCost, solution.costGcd, solution.allocation);
-    std::cerr << "Optimizing my allocation took " << since(start) << "ms" << std::endl;
+    std::clog << "Optimizing my allocation took " << since(start) << "ms" << std::endl;
 
     /*
-    std::cerr << "\n" << std::endl;
+    std::clog << "\n" << std::endl;
     for (size_t i = 0; i < 6; ++i)
     {
         auto& region = *solution.regions[i];
-        std::cerr << region;
+        std::clog << region;
     }
-    std::cerr << "\n" << std::endl;
+    std::clog << "\n" << std::endl;
     for (size_t i = 0, size = 6; i < size; ++i)
     {
         auto& route = *solution.routes[i];
-        std::cerr << route;
+        std::clog << route;
     }
     */
 
     // Output our solution
-    std::cerr << "\nMy allocation is" << std::endl;
+    // std::clog << "\nMy allocation is" << std::endl;
     for (const auto& iter : solution.allocation)
     {
-        std::cout << iter.first << "," << iter.second << std::endl;
-        std::cerr << iter.first << "," << iter.second << std::endl;
+        std::cout << iter.first << "," << iter.second << "\n";
+        // std::clog << iter.first << "," << iter.second << std::endl;
     }
 
-    std::cerr << "----------------------------------\n";
-    std::cerr << "Total runtime is " << since(total_start) << "ms" << std::endl;
+    std::clog << "----------------------------------\n";
+    std::clog << "Total runtime is " << since(total_start) << "ms" << std::endl;
 
     return 0;
 }
