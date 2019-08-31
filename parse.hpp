@@ -6,7 +6,7 @@ namespace parse
     {
         if (!check)
         {
-            std::cerr << msg << std::endl;
+            std::clog << msg << std::endl;
             exit(-1);
         }
     }
@@ -48,13 +48,13 @@ namespace parse
                 int targets;
                 parse::string(nextToken, targets);
 
-                region->numTargets[time] += targets * activeFactors[time] * slotLengths[time];
+                region->targets[time] += targets * activeFactors[time] * slotLengths[time];
 
-                // std::cerr << "In region with mesh " << region->meshId << " at slot " << time << ", of age group " << age << " there are "
+                // std::clog << "In region with mesh " << region->meshId << " at slot " << time << ", of age group " << age << " there are "
                 //     << targets << " targets\n";
-                // std::cerr << "The activity probability in this slot is " << activeFactors[time] << "\n";
-                // std::cerr << "The length of this slot is " << slotLengths[time] << "\n";
-                // std::cerr << "Number of targets, summed over ages, is " << region->numTargets[time] << "\n";
+                // std::clog << "The activity probability in this slot is " << activeFactors[time] << "\n";
+                // std::clog << "The length of this slot is " << slotLengths[time] << "\n";
+                // std::clog << "Number of targets, summed over ages, is " << region->targets[time] << "\n";
             }
 
             else if (token == "coordinates")
@@ -118,20 +118,39 @@ namespace parse
 
         std::string line;
         line.reserve(10000);
+
+        double lineTime = 0.;
+        double parseTime = 0.;
+        double cleanTime = 0.;
+        size_t lines = 0;
+        clock_t lineStart = clock();
         while (std::getline(stream, line))
         {
+            lineTime += since(lineStart);
+            ++lines;
+
+            clock_t cleanStart = clock();
             auto tokens = geojsonLine(line);
+            cleanTime += since(cleanStart);
             if (tokens.size() >= 2 && tokens[0] == "type" && tokens[1] == "Feature")
             {
                 // this is a route
+                clock_t parseStart = clock();
                 auto region = parse::region(tokens, targetAges, activeFactors, routesBox);
+                parseTime += since(parseStart);
+
                 if (region != nullptr)
                 {
                     regions.push_back(std::move(region));
                 }
             }
+            lineStart = clock();
         }
-        std::cerr << "I found " << regions.size() << " regions." << std::endl;
+        std::clog << "I found " << regions.size() << " regions." << std::endl;
+        std::clog << "Reading all " << lines << " lines from " << filename << " took me "
+            << lineTime << "ms" << std::endl;
+        std::clog << "Cleaning all lines took " << cleanTime << "ms" << std::endl;
+        std::clog << "Just interpreting the regions took " << parseTime << "ms" << std::endl;
     }
 
     std::unique_ptr<intersection::Route> route(const std::vector<std::string>& tokens, double& minCost, double& costGcd)
@@ -161,20 +180,20 @@ namespace parse
             else if (token == "TZ2_Max")
             {
                 assertion(i + 1 < tokens.size(), "Missing TZ2_Max!");
-                parse::string(tokens[i+1], route->busesPerSlot[0]);
-                assertion(route->busesPerSlot[0] >= 0, "Negative number of buses per time slot!");
+                parse::string(tokens[i+1], route->buses[0]);
+                assertion(route->buses[0] >= 0, "Negative number of buses per time slot!");
             }
             else if (token == "TZ3_Max")
             {
                 assertion(i + 1 < tokens.size(), "Missing TZ3_Max!");
-                parse::string(tokens[i+1], route->busesPerSlot[1]);
-                assertion(route->busesPerSlot[1] >= 0, "Negative number of buses per time slot!");
+                parse::string(tokens[i+1], route->buses[1]);
+                assertion(route->buses[1] >= 0, "Negative number of buses per time slot!");
             }
             else if (token == "TZ4_Max")
             {
                 assertion(i + 1 < tokens.size(), "Missing TZ4_Max!");
-                parse::string(tokens[i+1], route->busesPerSlot[2]);
-                assertion(route->busesPerSlot[2] >= 0, "Negative number of buses per time slot!");
+                parse::string(tokens[i+1], route->buses[2]);
+                assertion(route->buses[2] >= 0, "Negative number of buses per time slot!");
             }
             else if (token == "coordinates")
             {
@@ -211,13 +230,25 @@ namespace parse
 
         std::string line;
         line.reserve(10000);
+        size_t lines = 0;
+        double lineTime = 0.;
+        double cleanTime = 0.;
+        double parseTime = 0.;
+        clock_t lineStart = clock();
         while (std::getline(stream, line))
         {
+            ++lines;
+            lineTime += since(lineStart);
+
+            clock_t cleanStart = clock();
             std::vector<std::string> tokens = geojsonLine(line);
+            cleanTime += since(cleanStart);
             if (tokens.size() >= 2 && tokens[0] == "type" && tokens[1] == "Feature")
             {
                 // this is a route
+                clock_t parseStart = clock();
                 routes.push_back(parse::route(tokens, minCost, costGcd));
+                parseTime += since(parseStart);
                 auto& route = routes.back();
 
                 if (route->box[0][0] < routesBox[0][0]) { routesBox[0][0] = route->box[0][0]; }
@@ -225,8 +256,13 @@ namespace parse
                 if (route->box[1][0] > routesBox[1][0]) { routesBox[1][0] = route->box[1][0]; }
                 if (route->box[1][1] > routesBox[1][1]) { routesBox[1][1] = route->box[1][1]; }
             }
+            lineStart = clock();
         }
-        std::cerr << "I found " << routes.size() << " routes." << std::endl;
+        std::clog << "I found " << routes.size() << " routes." << std::endl;
+        std::clog << "Reading all " << lines << " lines from " << filename << " took me "
+            << lineTime << "ms" << std::endl;
+        std::clog << "Cleaning all lines took " << cleanTime << "ms" << std::endl;
+        std::clog << "Just interpreting the routes took " << parseTime << "ms" << std::endl;
     }
 
     std::array<double, intersection::TIMESLOTS> activeFactors(std::string filename)
@@ -234,7 +270,7 @@ namespace parse
         std::ifstream factorsStream (filename);
         if (!factorsStream.is_open())
         {
-            std::cerr << "Route geojson file missing!" << std::endl;
+            std::clog << "Route geojson file missing!" << std::endl;
             exit(1);
         }
 
@@ -247,7 +283,7 @@ namespace parse
         {
             try { actives[f] = std::stof(facString); }
             catch (const std::logic_error& ex) {
-                std::cerr << "Active factor " << facString << " could not be parsed: " << ex.what() << std::endl;
+                std::clog << "Active factor " << facString << " could not be parsed: " << ex.what() << std::endl;
                 exit(1);
             }
         }
@@ -284,9 +320,8 @@ namespace parse
         // Line 1: target ages
         std::string ageString;
         std::getline(std::cin, ageString);
-        std::cerr << "The target age group string is " << ageString << std::endl;
         std::string targetAges = parse::targetAges(ageString);
-        std::cerr << "The target age groups are " << targetAges << std::endl;
+        std::clog << "The target age groups are " << targetAges << std::endl;
 
         // Line 2: budget
         std::string budgetString;
@@ -296,7 +331,7 @@ namespace parse
             budget = std::stof(budgetString);
         }
         catch (const std::logic_error& ex) {
-            std::cerr << "Budget: " << budgetString << " could not be parsed: " << ex.what() << std::endl;
+            std::clog << "Budget: " << budgetString << " could not be parsed: " << ex.what() << std::endl;
             exit(1);
         }
 
@@ -315,19 +350,16 @@ namespace parse
         std::getline(std::cin, activeCsv);
         while (isspace(activeCsv.back())) { activeCsv.pop_back(); }
 
-        std::cerr << "Parsing all the paths took " << since(start) << "ms" << std::endl;
-
         start = clock();
         std::array<double, intersection::TIMESLOTS> activeFactors = parse::activeFactors(activeCsv);
-        std::cerr << "The activity probabilities for the time slots are " << activeFactors[0] << ", " << activeFactors[1] << ", " << activeFactors[2] << std::endl;
-        std::cerr << "Parsing the activity probabilities took " << since(start) << "ms" << std::endl;
+        std::clog << "The activity probabilities for the time slots are " << activeFactors[0] << ", " << activeFactors[1] << ", " << activeFactors[2] << std::endl;
 
         start = clock();
         parse::allRoutes(routes, routesBox, minCost, costGcd, routePath);
-        std::cerr << "Parsing all the routes took " << since(start) << "ms" << std::endl;
+        std::clog << "Parsing all the routes took " << since(start) << "ms" << std::endl;
 
         start = clock();
         parse::allRegions(regions, populationPath, targetAges, activeFactors, routesBox);
-        std::cerr << "Parsing all the regions took " << since(start) << "ms" << std::endl;
+        std::clog << "Parsing all the regions took " << since(start) << "ms" << std::endl;
     }
 }
