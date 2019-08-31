@@ -74,7 +74,7 @@ namespace intersection
         std::string meshId = "NONE";
         std::array<double, TIMESLOTS> targets {0., 0., 0.};
 
-        std::vector<std::array<double, 2>> polygon;
+        std::vector<Point> polygon;
         Box box {supremum, infimum};
     };
 
@@ -85,7 +85,7 @@ namespace intersection
         std::array<int, TIMESLOTS> buses {0, 0, 0};
         std::vector<double> benefits;
 
-        std::vector<std::array<double, 2>> polyline;
+        std::vector<Point> polyline;
         Box box {supremum, infimum};
     };
 
