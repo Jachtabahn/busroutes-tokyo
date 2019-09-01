@@ -1,3 +1,5 @@
+#pragma once
+
 namespace knapsack
 {
     int computeGcd(int x, int y)
@@ -16,7 +18,7 @@ namespace knapsack
         const double& totalBudget,
         const double& minCost,
         const double& costGcd,
-        std::map<std::string, int>& allocation)
+        std::map<int, int>& allocation)
     {
         // route.benefits[t] is the benefit of buying the first t+1 buses
 
