@@ -1,3 +1,5 @@
+#pragma once
+
 namespace intersection
 {
     typedef std::array<double, 2> Point;
@@ -71,7 +73,7 @@ namespace intersection
 
     struct Region
     {
-        std::string meshId = "NONE";
+        int meshId = -1;
         std::array<double, TIMESLOTS> targets {0., 0., 0.};
 
         std::vector<Point> polygon;
@@ -80,7 +82,7 @@ namespace intersection
 
     struct Route
     {
-        std::string outputId = "NONE";
+        int outputId = -1;
         double cost = -1.0;
         std::array<int, TIMESLOTS> buses {0, 0, 0};
         std::vector<double> benefits;
@@ -182,8 +184,7 @@ std::ostream& operator<< (std::ostream& stream, const intersection::Region& regi
         << " " << region.targets[2]
         << "\n";
     stream << "Number of polygon points: " << region.polygon.size() << "\n";
-    stream << "Minimum point of the polygon: " << region.box[0] << "\n"
-        << "Maximum point of the polygon: " << region.box[1] <<"\n";
+    stream << "Bounding box: " << region.box << "\n";
 
     return stream;
 }
