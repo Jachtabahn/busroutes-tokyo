@@ -8,7 +8,7 @@ namespace intersection
     // constants
     const int TIMESLOTS = 3;
     const int MAX_BUSES = 4;
-    const double EPSILON = 1e-8;
+    const double EPSILON = 1e-12;
     const Point infimum {-std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()};
     const Point supremum {std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()};
     const int MIN = 0;
