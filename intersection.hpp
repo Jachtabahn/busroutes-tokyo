@@ -116,6 +116,9 @@ namespace intersection
         std::vector<std::unique_ptr<intersection::Region>>& regions,
         std::vector<std::unique_ptr<intersection::Route>>& routes)
     {
+        std::string intersectFile = "intersect.csv";
+        std::ofstream intersectStream {intersectFile};
+
         for (auto routeIt = routes.begin(), routeEnd = routes.end(); routeIt != routeEnd; ++routeIt)
         {
             auto& route = *routeIt;
@@ -123,15 +126,19 @@ namespace intersection
             route->benefits.resize(maxBuses);
             std::fill(route->benefits.begin(), route->benefits.end(), 0.0);
 
+            intersectStream << route->outputId;
+
             for (auto regionIt = regions.begin(), regionsEnd = regions.end(); regionIt != regionsEnd; ++regionIt)
             {
                 auto& region = *regionIt;
 
-                bool maybe = mayIntersect(region->box, route->box);
-                if (!maybe) { continue; }
+                // bool maybe = mayIntersect(region->box, route->box);
+                // if (!maybe) { continue; }
 
-                bool intersects = intersection::has(route->polyline, region->polygon);
+                bool intersects = intersection::has(route->polylines, region->polygon);
                 if (!intersects) { continue; }
+
+                intersectStream << "," << region->meshId;
 
                 for (int s = 0; s < TIMESLOTS; ++s)
                 {
@@ -143,6 +150,7 @@ namespace intersection
                     }
                 }
             }
+            intersectStream << std::endl;
         }
     }
 }
