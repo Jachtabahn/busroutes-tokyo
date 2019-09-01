@@ -85,7 +85,7 @@ namespace parse
     }
 
     bool parse_polylines(
-        std::vector<intersection::Point>& polyline,
+        std::vector<std::vector<intersection::Point>>& polylines,
         intersection::Box& box,
         std::string::const_iterator& pos,
         const std::string::const_iterator& max_pos)
@@ -94,8 +94,8 @@ namespace parse
 
         while (next(pos, max_pos))
         {
-            // polylines.emplace_back(std::vector<intersection::Point>{});
-            // std::vector<intersection::Point>& polyline = polylines.back();
+            polylines.emplace_back(std::vector<intersection::Point>{});
+            std::vector<intersection::Point>& polyline = polylines.back();
 
             while (next(pos, max_pos))
             {
@@ -233,7 +233,7 @@ namespace parse
             }
             else if (json_string == "coordinates")
             {
-                if (!parse_polylines(route->polyline, route->box, second, max_pos)) { return route; }
+                if (!parse_polylines(route->polylines, route->box, second, max_pos)) { return route; }
             }
 
             skip('"', second, max_pos);

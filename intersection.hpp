@@ -83,6 +83,15 @@ namespace intersection
         return false;
     }
 
+    bool has(const std::vector<std::vector<Point>>& polylines, const std::vector<Point>& polygon)
+    {
+        for (auto it = polylines.begin(), end = polylines.end(); it != end; ++it)
+        {
+            if (has(*it, polygon)) { return true; }
+        }
+        return false;
+    }
+
     struct Region
     {
         int meshId = -1;
@@ -99,7 +108,7 @@ namespace intersection
         std::array<int, TIMESLOTS> buses {0, 0, 0};
         std::vector<double> benefits;
 
-        std::vector<Point> polyline;
+        std::vector<std::vector<Point>> polylines;
         Box box {supremum, infimum};
     };
 
@@ -178,6 +187,19 @@ std::ostream& operator<< (std::ostream& stream, const std::vector<double>& vec)
     return stream << *end << "]";
 }
 
+std::ostream& operator<< (std::ostream& stream, const std::vector<intersection::Point>& vec)
+{
+    stream << "[";
+    if (vec.size() == 0) { return stream << "]"; }
+
+    auto end = vec.end()-1;
+    for (auto it = vec.begin(); it != end; ++it)
+    {
+        stream << *it << ", ";
+    }
+    return stream << *end << "]";
+}
+
 std::ostream& operator<< (std::ostream& stream, const intersection::Route& route)
 {
     std::cerr << "----------------- Route -----------------\n";
@@ -188,7 +210,12 @@ std::ostream& operator<< (std::ostream& stream, const intersection::Route& route
         << route.buses[1] << ", "
         << route.buses[2] << "]\n";
     stream << "Numbers of targets hit (depending on #buses): " << route.benefits << "\n";
-    stream << "Number of polyline points: " << route.polyline.size() << "\n";
+    stream << "Number of polylines: " << route.polylines.size() << "\n";
+    stream << "The polylines are the following:" << "\n";
+    for (auto it = route.polylines.begin(), end = route.polylines.end(); it != end; ++it)
+    {
+        stream << *it << "\n";
+    }
     stream << "Bounding box: " << route.box << "\n";
 
     return stream;
