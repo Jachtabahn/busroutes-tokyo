@@ -11,261 +11,323 @@ namespace parse
         }
     }
 
-    template<class T>
-    bool string(const std::string& s, T& ret)
+    // true if there is a next [ with at least one more character after pos
+    // false if there is a ] before any [, or the input max_pos
+    bool next(std::string::const_iterator& pos, const std::string::const_iterator& max_pos)
     {
-        std::stringstream sin(s);
-        if (sin >> ret) { return true; }
-        else { return false; }
+        for (; pos != max_pos; ++pos)
+        {
+            switch (*pos)
+            {
+            case '[': // new inner array
+                ++pos;
+                return true;
+            case ']': // old outer array
+                ++pos;
+                return false;
+            }
+        }
+        return false;
+    }
+
+    // true if char found and skipped
+    bool skip(char skip, std::string::const_iterator& pos, const std::string::const_iterator& max_pos)
+    {
+        for (; pos != max_pos; ++pos)
+        {
+            if (*pos == skip)
+            {
+                ++pos;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool parse_int(int& i, std::string::const_iterator& pos, const std::string::const_iterator& max_pos)
+    {
+        for (; pos != max_pos; ++pos)
+        {
+            if (*pos != ' ' && *pos != ':') { break; }
+        }
+
+        std::string s{pos, max_pos};
+        try
+        {
+            i = std::stoi(s);
+            return true;
+        }
+        catch (const std::logic_error& ex)
+        {
+            std::clog << "Expect an integer, instead got " << s << std::endl;
+            return false;
+        }
+    }
+
+    bool parse_double(double& d, std::string::const_iterator& pos, const std::string::const_iterator& max_pos)
+    {
+        for (; pos != max_pos; ++pos)
+        {
+            if (*pos != ' ' && *pos != ':') { break; }
+        }
+
+        std::string s{pos, max_pos};
+        try
+        {
+            d = std::stof(s);
+            return true;
+        }
+        catch (const std::logic_error& ex)
+        {
+            std::clog << "Expect a double, instead got " << s << std::endl;
+            return false;
+        }
+    }
+
+    bool parse_polylines(
+        std::vector<intersection::Point>& polyline,
+        intersection::Box& box,
+        std::string::const_iterator& pos,
+        const std::string::const_iterator& max_pos)
+    {
+        if (!skip('[', pos, max_pos)) { return false; }
+
+        while (next(pos, max_pos))
+        {
+            // polylines.emplace_back(std::vector<intersection::Point>{});
+            // std::vector<intersection::Point>& polyline = polylines.back();
+
+            while (next(pos, max_pos))
+            {
+                polyline.emplace_back(intersection::Point{});
+                intersection::Point& point = polyline.back();
+
+                parse_double(point[0], pos, max_pos);
+                if (!skip(',', pos, max_pos)) { return false; }
+                parse_double(point[1], pos, max_pos);
+                if (!skip(']', pos, max_pos)) { return false; }
+
+                if (point[0] < box[0][0]) { box[0][0] = point[0]; }
+                if (point[1] < box[0][1]) { box[0][1] = point[1]; }
+                if (point[0] > box[1][0]) { box[1][0] = point[0]; }
+                if (point[1] > box[1][1]) { box[1][1] = point[1]; }
+            }
+        }
+        return true;
+    }
+
+    bool parse_polygon(
+        std::vector<intersection::Point>& polygon,
+        intersection::Box& box,
+        std::string::const_iterator& pos,
+        const std::string::const_iterator& max_pos)
+    {
+        if (!skip('[', pos, max_pos)) { return false; }
+        if (!skip('[', pos, max_pos)) { return false; }
+
+        while (next(pos, max_pos))
+        {
+            while (next(pos, max_pos))
+            {
+                polygon.emplace_back(intersection::Point{});
+                intersection::Point& point = polygon.back();
+
+                parse_double(point[0], pos, max_pos);
+                if (!skip(',', pos, max_pos)) { return false; }
+                parse_double(point[1], pos, max_pos);
+                if (!skip(']', pos, max_pos)) { return false; }
+
+                if (point[0] < box[0][0]) { box[0][0] = point[0]; }
+                if (point[1] < box[0][1]) { box[0][1] = point[1]; }
+                if (point[0] > box[1][0]) { box[1][0] = point[0]; }
+                if (point[1] > box[1][1]) { box[1][1] = point[1]; }
+
+            }
+        }
+        if (!skip(']', pos, max_pos)) { return false; }
+        return true;
     }
 
     std::unique_ptr<intersection::Region> region(
-        const std::vector<std::string>& tokens,
-        std::string targetAges,
-        std::array<double, intersection::TIMESLOTS> activeFactors,
-        const intersection::Box& routesBox)
+        const std::string& line,
+        std::array<double, intersection::TIMESLOTS> active_factors,
+        const std::string& target_ages)
     {
-        static const std::array<double, intersection::TIMESLOTS> slotLengths {2, 8, 4};
+        static const std::array<double, intersection::TIMESLOTS> slot_length {2, 8, 4};
 
-        std::unique_ptr<intersection::Region> region = std::make_unique<intersection::Region>();
-        for (size_t i = 0; i < tokens.size(); ++i)
+        std::unique_ptr<intersection::Region> region;
+        auto max_pos = line.cend();
+        std::string::const_iterator first = line.cbegin();
+        skip('"', first, max_pos);
+        std::string::const_iterator second = first;
+        while (skip('"', second, max_pos))
         {
-            auto& token = tokens[i];
-            auto& nextToken = tokens[i + 1];
-
-            if (token == "MESH_ID") { region->meshId = nextToken; }
-
-            else if (token.size() >= 5 && token[0] == 'G' && token[3] == 'T' && token[4] == 'Z')
+            std::string json_string {first, second-1};
+            if (json_string == "Feature")
             {
-                char age = token[1];
-                auto last = targetAges.end();
-                if (std::find(targetAges.begin(), last, age) == last) { continue; }
-
-                int time = token[5] - '0' - 2;
-                if (time < 0) { continue; } // ignore the first always-zero time slot
-                assertion(time >= 0 && time < intersection::TIMESLOTS, "Invalid time slot at mesh id " + region->meshId);
-
-                int targets;
-                parse::string(nextToken, targets);
-
-                region->targets[time] += targets * activeFactors[time] * slotLengths[time];
-
-                // std::clog << "In region with mesh " << region->meshId << " at slot " << time << ", of age group " << age << " there are "
-                //     << targets << " targets\n";
-                // std::clog << "The activity probability in this slot is " << activeFactors[time] << "\n";
-                // std::clog << "The length of this slot is " << slotLengths[time] << "\n";
-                // std::clog << "Number of targets, summed over ages, is " << region->targets[time] << "\n";
+                region = std::make_unique<intersection::Region>();
             }
-
-            else if (token == "coordinates")
+            else if (json_string == "MESH_ID")
             {
-                double x, y;
-                while (i + 2 < tokens.size())
-                {
-                    auto success = parse::string(tokens[i + 1], x);
-                    assertion(success, "Wrong coordinates");
-                    success = parse::string(tokens[i + 2], y);
-                    assertion(success, "Wrong coordinates");
-                    i += 2;
-                    region->polygon.push_back(intersection::Point{x, y});
+                if (!parse_int(region->meshId, second, max_pos)) { return region; }
+            }
+            else if (second-1-first == 6 && json_string[0] == 'G'
+                && json_string[2] == '_' && json_string[3] == 'T' && json_string[4] == 'Z')
+            {
+                char& age = json_string[1];
+                int time = json_string[5] - '2';
 
-                    if (x < region->box[0][0]) { region->box[0][0] = x; }
-                    if (y < region->box[0][1]) { region->box[0][1] = y; }
-                    if (x > region->box[1][0]) { region->box[1][0] = x; }
-                    if (y > region->box[1][1]) { region->box[1][1] = y; }
-                }
-
-                bool may = intersection::mayIntersect(region->box, routesBox);
-                if (!may)
+                auto end = target_ages.end();
+                if (std::find(target_ages.begin(), end, age) != end && time >= 0)
                 {
-                    // this region does not intersect with any route and is worthless for optimization
-                    return nullptr;
+                    double more_targets;
+                    if (!parse_double(more_targets, second, max_pos)) { return region; }
+                    region->targets[time] += more_targets * active_factors[time] * slot_length[time];
                 }
             }
+            else if (json_string == "coordinates")
+            {
+                if (!parse_polygon(region->polygon, region->box, second, max_pos)) { return region; }
+            }
+
+            skip('"', second, max_pos);
+            first = second;
         }
-        assertion(region->meshId != "", "Missing MESH_ID");
-        assertion(region->polygon[0] == region->polygon.back(), "Open Polygon! " + region->meshId);
         return region;
     }
 
-    std::vector<std::string> geojsonLine(std::string& nextLine)
+    std::unique_ptr<intersection::Route> route(const std::string& line)
     {
-        for (int i = 0; nextLine[i]; ++i)
+        std::unique_ptr<intersection::Route> route;
+        auto max_pos = line.cend();
+        std::string::const_iterator first = line.cbegin();
+        skip('"', first, max_pos);
+        std::string::const_iterator second = first;
+        while (skip('"', second, max_pos))
         {
-            if (!(isalpha(nextLine[i]) || isdigit(nextLine[i]) || nextLine[i] == '.' || nextLine[i] == '_'))
+            std::string json_string {first, second-1};
+            // std::clog << "Found json string: " << json_string << std::endl;
+            if (json_string == "Feature")
             {
-                nextLine[i] = ' ';
+                route = std::make_unique<intersection::Route>();
             }
+            else if (json_string == "RouteID")
+            {
+                if (!parse_int(route->outputId, second, max_pos)) { return route; }
+            }
+            else if (json_string == "Cost")
+            {
+                if (!parse_double(route->cost, second, max_pos)) { return route; }
+            }
+            else if (json_string == "TZ2_Max")
+            {
+                if (!parse_int(route->buses[0], second, max_pos)) { return route; }
+            }
+            else if (json_string == "TZ3_Max")
+            {
+                if (!parse_int(route->buses[1], second, max_pos)) { return route; }
+            }
+            else if (json_string == "TZ4_Max")
+            {
+                if (!parse_int(route->buses[2], second, max_pos)) { return route; }
+            }
+            else if (json_string == "coordinates")
+            {
+                if (!parse_polylines(route->polyline, route->box, second, max_pos)) { return route; }
+            }
+
+            skip('"', second, max_pos);
+            first = second;
         }
-        std::stringstream stream(nextLine);
-        std::vector<std::string> tokens;
-        for (std::string token; stream >> token; )
-        {
-            tokens.push_back(token);
-        }
-        return tokens;
+        return route;
     }
 
-    void allRegions(
+    void all_regions(
         std::vector<std::unique_ptr<intersection::Region>>& regions,
         std::string filename,
-        std::string targetAges,
-        std::array<double, intersection::TIMESLOTS> activeFactors,
-        intersection::Box& routesBox)
+        std::string target_ages,
+        std::array<double, intersection::TIMESLOTS> active_factors)
     {
         std::ifstream stream {filename};
-        assertion(stream.is_open(), "Regions geojson file missing!");
+        if (!stream.is_open())
+        {
+            std::clog << "Could not find the regions geojson file " << filename << std::endl;
+            exit(-1);
+        }
 
         std::string line;
         line.reserve(10000);
 
-        double lineTime = 0.;
-        double parseTime = 0.;
-        double cleanTime = 0.;
         size_t lines = 0;
-        clock_t lineStart = clock();
+        double readTime = 0.;
+        double parseTime = 0.;
+        clock_t read_start = clock();
         while (std::getline(stream, line))
         {
-            lineTime += since(lineStart);
+            readTime += since(read_start);
             ++lines;
 
-            clock_t cleanStart = clock();
-            auto tokens = geojsonLine(line);
-            cleanTime += since(cleanStart);
-            if (tokens.size() >= 2 && tokens[0] == "type" && tokens[1] == "Feature")
-            {
-                // this is a route
-                clock_t parseStart = clock();
-                auto region = parse::region(tokens, targetAges, activeFactors, routesBox);
-                parseTime += since(parseStart);
+            clock_t parseStart = clock();
+            std::unique_ptr<intersection::Region> region = parse::region(line, active_factors, target_ages);
+            parseTime += since(parseStart);
 
-                if (region != nullptr)
-                {
-                    regions.push_back(std::move(region));
-                }
+            if (region)
+            {
+                regions.push_back(std::move(region));
             }
-            lineStart = clock();
+            read_start = clock();
         }
         std::clog << "I found " << regions.size() << " regions." << std::endl;
         std::clog << "Reading all " << lines << " lines from " << filename << " took me "
-            << lineTime << "ms" << std::endl;
-        std::clog << "Cleaning all lines took " << cleanTime << "ms" << std::endl;
+            << readTime << "ms" << std::endl;
         std::clog << "Just interpreting the regions took " << parseTime << "ms" << std::endl;
     }
 
-    std::unique_ptr<intersection::Route> route(const std::vector<std::string>& tokens, double& minCost, double& costGcd)
-    {
-        std::unique_ptr<intersection::Route> route = std::make_unique<intersection::Route>();
-
-        for (size_t i = 0; i < tokens.size(); ++i)
-        {
-            auto& token = tokens[i];
-            if (token == "RouteID")
-            {
-                assertion(i + 1 < tokens.size(), "Missing route outputId!");
-                route->outputId = tokens[i+1];
-            }
-            else if (token == "Cost")
-            {
-                assertion(i + 1 < tokens.size(), "Missing route outputId!");
-                parse::string(tokens[i+1], route->cost);
-
-                if (route->cost < minCost)
-                {
-                    minCost = route->cost;
-                }
-
-                costGcd = static_cast<double>(knapsack::computeGcd(static_cast<int>(costGcd), static_cast<int>(route->cost)));
-            }
-            else if (token == "TZ2_Max")
-            {
-                assertion(i + 1 < tokens.size(), "Missing TZ2_Max!");
-                parse::string(tokens[i+1], route->buses[0]);
-                assertion(route->buses[0] >= 0, "Negative number of buses per time slot!");
-            }
-            else if (token == "TZ3_Max")
-            {
-                assertion(i + 1 < tokens.size(), "Missing TZ3_Max!");
-                parse::string(tokens[i+1], route->buses[1]);
-                assertion(route->buses[1] >= 0, "Negative number of buses per time slot!");
-            }
-            else if (token == "TZ4_Max")
-            {
-                assertion(i + 1 < tokens.size(), "Missing TZ4_Max!");
-                parse::string(tokens[i+1], route->buses[2]);
-                assertion(route->buses[2] >= 0, "Negative number of buses per time slot!");
-            }
-            else if (token == "coordinates")
-            {
-                double x, y;
-                while (i + 2 < tokens.size())
-                {
-                    auto success = parse::string(tokens[i + 1], x);
-                    assertion(success, "Wrong coordinates");
-                    success = parse::string(tokens[i + 2], y);
-                    assertion(success, "Wrong coordinates");
-                    i += 2;
-                    route->polyline.push_back(intersection::Point{x, y});
-
-                    if (x < route->box[0][0]) { route->box[0][0] = x; }
-                    if (y < route->box[0][1]) { route->box[0][1] = y; }
-                    if (x > route->box[1][0]) { route->box[1][0] = x; }
-                    if (y > route->box[1][1]) { route->box[1][1] = y; }
-                }
-            }
-        }
-        assertion(route->outputId != "", "Missing route outputId!");
-        return route;
-    }
-
-    void allRoutes(
+    void all_routes(
         std::vector<std::unique_ptr<intersection::Route>>& routes,
-        intersection::Box& routesBox,
         double& minCost,
         double& costGcd,
         std::string filename)
     {
         std::ifstream stream {filename};
-        assertion(stream.is_open(), "Route geojson file missing!");
+        if (!stream.is_open())
+        {
+            std::clog << "Could not find the routes geojson file " << filename << std::endl;
+            exit(-1);
+        }
 
         std::string line;
         line.reserve(10000);
         size_t lines = 0;
-        double lineTime = 0.;
-        double cleanTime = 0.;
+        double readTime = 0.;
         double parseTime = 0.;
-        clock_t lineStart = clock();
+        clock_t read_start = clock();
         while (std::getline(stream, line))
         {
             ++lines;
-            lineTime += since(lineStart);
+            readTime += since(read_start);
 
-            clock_t cleanStart = clock();
-            std::vector<std::string> tokens = geojsonLine(line);
-            cleanTime += since(cleanStart);
-            if (tokens.size() >= 2 && tokens[0] == "type" && tokens[1] == "Feature")
-            {
-                // this is a route
-                clock_t parseStart = clock();
-                routes.push_back(parse::route(tokens, minCost, costGcd));
-                parseTime += since(parseStart);
-                auto& route = routes.back();
+            // this is a route
+            clock_t parseStart = clock();
+            std::unique_ptr<intersection::Route> new_route = parse::route(line);
+            parseTime += since(parseStart);
+            if (!new_route) { continue; }
+            routes.push_back(std::move(new_route));
 
-                if (route->box[0][0] < routesBox[0][0]) { routesBox[0][0] = route->box[0][0]; }
-                if (route->box[0][1] < routesBox[0][1]) { routesBox[0][1] = route->box[0][1]; }
-                if (route->box[1][0] > routesBox[1][0]) { routesBox[1][0] = route->box[1][0]; }
-                if (route->box[1][1] > routesBox[1][1]) { routesBox[1][1] = route->box[1][1]; }
-            }
-            lineStart = clock();
+            auto& route = routes.back();
+            costGcd = static_cast<double>(knapsack::computeGcd(static_cast<int>(costGcd), static_cast<int>(route->cost)));
+
+            if (route->cost < minCost) { minCost = route->cost; }
+
+            read_start = clock();
         }
         std::clog << "I found " << routes.size() << " routes." << std::endl;
         std::clog << "Reading all " << lines << " lines from " << filename << " took me "
-            << lineTime << "ms" << std::endl;
-        std::clog << "Cleaning all lines took " << cleanTime << "ms" << std::endl;
+            << readTime << "ms" << std::endl;
         std::clog << "Just interpreting the routes took " << parseTime << "ms" << std::endl;
     }
 
-    std::array<double, intersection::TIMESLOTS> activeFactors(std::string filename)
+    std::array<double, intersection::TIMESLOTS> active_factors(std::string filename)
     {
         std::ifstream factorsStream (filename);
         if (!factorsStream.is_open())
@@ -290,9 +352,9 @@ namespace parse
         return actives;
     }
 
-    std::string targetAges(std::string ageString)
+    std::string target_ages(std::string ageString)
     {
-        std::string targetAges;
+        std::string target_ages;
         std::stringstream stream(ageString);
         std::string group;
         while(getline(stream, group, ','))
@@ -301,10 +363,10 @@ namespace parse
             group.erase(std::remove_if(group.begin(), group.end(), ::isspace), group.end());
 
             assertion(group.size() == 1, "Age group consists of more than a single character");
-            targetAges.push_back(group[0]);
+            target_ages.push_back(group[0]);
         }
 
-        return targetAges;
+        return target_ages;
     }
 
     void input(
@@ -312,16 +374,15 @@ namespace parse
         std::vector<std::unique_ptr<intersection::Route>>& routes,
         double& budget,
         double& minCost,
-        double& costGcd,
-        intersection::Box& routesBox)
+        double& costGcd)
     {
         clock_t start = clock();
 
         // Line 1: target ages
         std::string ageString;
         std::getline(std::cin, ageString);
-        std::string targetAges = parse::targetAges(ageString);
-        std::clog << "The target age groups are " << targetAges << std::endl;
+        std::string target_ages = parse::target_ages(ageString);
+        std::clog << "The target age groups are " << target_ages << std::endl;
 
         // Line 2: budget
         std::string budgetString;
@@ -334,32 +395,33 @@ namespace parse
             std::clog << "Budget: " << budgetString << " could not be parsed: " << ex.what() << std::endl;
             exit(1);
         }
+        std::clog << "The total budget is " << budget << std::endl;
 
-        // Line 3: Population JSON
+        // Line 3: path to regions geojson
         std::string populationPath;
         std::getline(std::cin, populationPath);
         while (isspace(populationPath.back())) { populationPath.pop_back(); }
 
-        // Line 4: intersection::Route JSON
+        // Line 4: path to routes geojson
         std::string routePath;
         std::getline(std::cin, routePath);
         while (isspace(routePath.back())) { routePath.pop_back(); }
 
-        // Line 5: Active CSV
+        // Line 5: path to activity probabilities csv
         std::string activeCsv;
         std::getline(std::cin, activeCsv);
         while (isspace(activeCsv.back())) { activeCsv.pop_back(); }
 
         start = clock();
-        std::array<double, intersection::TIMESLOTS> activeFactors = parse::activeFactors(activeCsv);
-        std::clog << "The activity probabilities for the time slots are " << activeFactors[0] << ", " << activeFactors[1] << ", " << activeFactors[2] << std::endl;
+        std::array<double, intersection::TIMESLOTS> active_factors = parse::active_factors(activeCsv);
+        std::clog << "The activity probabilities for the time slots are " << active_factors[0] << ", " << active_factors[1] << ", " << active_factors[2] << std::endl;
 
         start = clock();
-        parse::allRoutes(routes, routesBox, minCost, costGcd, routePath);
+        parse::all_routes(routes, minCost, costGcd, routePath);
         std::clog << "Parsing all the routes took " << since(start) << "ms" << std::endl;
 
         start = clock();
-        parse::allRegions(regions, populationPath, targetAges, activeFactors, routesBox);
+        parse::all_regions(regions, populationPath, target_ages, active_factors);
         std::clog << "Parsing all the regions took " << since(start) << "ms" << std::endl;
     }
 }
