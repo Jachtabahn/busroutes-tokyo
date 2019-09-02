@@ -4,7 +4,59 @@ namespace intersection
 {
     typedef std::array<double, 2> Point;
     typedef std::array<Point, 2> Box;
+}
 
+std::ostream& operator<< (std::ostream& stream, const intersection::Point& point)
+{
+    return stream << "(" << point[0] << ", " << point[1] << ")";
+}
+
+std::ostream& operator<< (std::ostream& stream, const intersection::Box& box)
+{
+    return stream << "{" << box[0] << ", " << box[1] << "}";
+}
+
+std::ostream& operator<< (std::ostream& stream, const std::vector<double>& vec)
+{
+    stream << "[";
+    if (vec.size() == 0) { return stream << "]"; }
+
+    auto end = vec.end()-1;
+    for (auto it = vec.begin(); it != end; ++it)
+    {
+        stream << *it << ", ";
+    }
+    return stream << *end << "]";
+}
+
+std::ostream& operator<< (std::ostream& stream, const std::vector<intersection::Point>& vec)
+{
+    stream << "[";
+    if (vec.size() == 0) { return stream << "]"; }
+
+    auto end = vec.end()-1;
+    for (auto it = vec.begin(); it != end; ++it)
+    {
+        stream << *it << ", ";
+    }
+    return stream << *end << "]";
+}
+
+std::ostream& operator<< (std::ostream& stream, const std::vector<std::vector<intersection::Point>>& vec)
+{
+    stream << "[";
+    if (vec.size() == 0) { return stream << "]"; }
+
+    auto end = vec.end()-1;
+    for (auto it = vec.begin(); it != end; ++it)
+    {
+        stream << *it << ",\n";
+    }
+    return stream << *end << "]";
+}
+
+namespace intersection
+{
     // constants
     const int TIMESLOTS = 3;
     const int MAX_BUSES = 4;
@@ -34,35 +86,35 @@ namespace intersection
 
     bool has(const Point& a, const Point& b, const Point& c, const Point& d)
     {
-        return sign(det(c - a, b - a)) * sign(det(d - a, b - a)) <= 0 && sign(det(a - c, d - c)) * sign(det(b - c, d - c)) <= 0;
+        // return sign(det(c - a, b - a)) * sign(det(d - a, b - a)) <= 0 && sign(det(a - c, d - c)) * sign(det(b - c, d - c)) <= 0;
 
-        // if (std::min(a[0], b[0]) > std::max(c[0], d[0])) { return false; }
-        // if (std::min(a[1], b[1]) > std::max(c[1], d[1])) { return false; }
-        // if (std::max(a[0], b[0]) < std::min(c[0], d[0])) { return false; }
-        // if (std::max(a[1], b[1]) < std::min(c[1], d[1])) { return false; }
+        if (std::min(a[0], b[0]) > std::max(c[0], d[0])) { return false; }
+        if (std::min(a[1], b[1]) > std::max(c[1], d[1])) { return false; }
+        if (std::max(a[0], b[0]) < std::min(c[0], d[0])) { return false; }
+        if (std::max(a[1], b[1]) < std::min(c[1], d[1])) { return false; }
 
-        // double tl = c[0]-b[0];
-        // double bl = c[1]-b[1];
-        // double trAB = b[0]-a[0];
-        // double brAB = b[1]-a[1];
+        double tl = c[0]-b[0];
+        double bl = c[1]-b[1];
+        double trAB = b[0]-a[0];
+        double brAB = b[1]-a[1];
 
-        // double det1 = tl*brAB - trAB*bl;
+        double det1 = tl*brAB - trAB*bl;
 
-        // double tlBD = d[0]-b[0];
-        // double blBD = d[1]-b[1];
+        double tlBD = d[0]-b[0];
+        double blBD = d[1]-b[1];
 
-        // double det2 = tlBD*brAB - trAB*blBD;
+        double det2 = tlBD*brAB - trAB*blBD;
 
-        // tl = a[0]-d[0];
-        // bl = a[1]-d[1];
-        // double trCD = d[0]-c[0];
-        // double brCD = d[1]-c[1];
+        tl = a[0]-d[0];
+        bl = a[1]-d[1];
+        double trCD = d[0]-c[0];
+        double brCD = d[1]-c[1];
 
-        // double det3 = tl*brCD - trCD*bl;
+        double det3 = tl*brCD - trCD*bl;
 
-        // double det4 = trCD*blBD - tlBD*brCD;
+        double det4 = trCD*blBD - tlBD*brCD;
 
-        // return sign(det1) * sign(det2) <= 0 && sign(det3) * sign(det4) <= 0;
+        return sign(det1) * sign(det2) <= 0 && sign(det3) * sign(det4) <= 0;
     }
 
     bool has(const Point& a, const Point& b, const std::vector<Point>& polygon)
@@ -141,8 +193,15 @@ namespace intersection
             {
                 auto& region = *regionIt;
 
-                // bool maybe = mayIntersect(region->box, route->box);
-                // if (!maybe) { continue; }
+                bool maybe = mayIntersect(region->box, route->box);
+                if (!maybe) { continue; }
+
+                // int my_mesh_id = 533935682;
+                // if (route->outputId == 60 and region->meshId == my_mesh_id)
+                // {
+                //     std::clog << "Polygon of region with mesh id " << my_mesh_id << std::endl;
+                //     std::clog << region->polygon << std::endl;
+                // }
 
                 bool intersects = intersection::has(route->polylines, region->polygon);
                 if (!intersects) { continue; }
@@ -160,44 +219,15 @@ namespace intersection
                 }
             }
             intersectStream << std::endl;
+
+            // int my_route_id = 60;
+            // if (route->outputId == my_route_id)
+            // {
+            //     std::clog << "Polylines of route " << my_route_id << std::endl;
+            //     std::clog << route->polylines << std::endl;
+            // }
         }
     }
-}
-
-std::ostream& operator<< (std::ostream& stream, const intersection::Point& point)
-{
-    return stream << "(" << point[0] << ", " << point[1] << ")";
-}
-
-std::ostream& operator<< (std::ostream& stream, const intersection::Box& box)
-{
-    return stream << "{" << box[0] << ", " << box[1] << "}";
-}
-
-std::ostream& operator<< (std::ostream& stream, const std::vector<double>& vec)
-{
-    stream << "[";
-    if (vec.size() == 0) { return stream << "]"; }
-
-    auto end = vec.end()-1;
-    for (auto it = vec.begin(); it != end; ++it)
-    {
-        stream << *it << ", ";
-    }
-    return stream << *end << "]";
-}
-
-std::ostream& operator<< (std::ostream& stream, const std::vector<intersection::Point>& vec)
-{
-    stream << "[";
-    if (vec.size() == 0) { return stream << "]"; }
-
-    auto end = vec.end()-1;
-    for (auto it = vec.begin(); it != end; ++it)
-    {
-        stream << *it << ", ";
-    }
-    return stream << *end << "]";
 }
 
 std::ostream& operator<< (std::ostream& stream, const intersection::Route& route)
