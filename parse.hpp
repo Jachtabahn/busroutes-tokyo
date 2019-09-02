@@ -48,7 +48,7 @@ namespace parse
     {
         for (; pos != max_pos; ++pos)
         {
-            if (*pos != ' ' && *pos != ':') { break; }
+            if (*pos != ' ' and *pos != ':') { break; }
         }
 
         std::string s{pos, max_pos};
@@ -68,13 +68,13 @@ namespace parse
     {
         for (; pos != max_pos; ++pos)
         {
-            if (*pos != ' ' && *pos != ':') { break; }
+            if (*pos != ' ' and *pos != ':') { break; }
         }
 
         std::string s{pos, max_pos};
         try
         {
-            d = std::stof(s);
+            d = std::stod(s);
             return true;
         }
         catch (const std::logic_error& ex)
@@ -171,14 +171,14 @@ namespace parse
             {
                 if (!parse_int(region->meshId, second, max_pos)) { return region; }
             }
-            else if (second-1-first == 6 && json_string[0] == 'G'
-                && json_string[2] == '_' && json_string[3] == 'T' && json_string[4] == 'Z')
+            else if (second-1-first == 6 and json_string[0] == 'G'
+                and json_string[2] == '_' and json_string[3] == 'T' and json_string[4] == 'Z')
             {
                 char& age = json_string[1];
                 int time = json_string[5] - '2';
 
                 auto end = target_ages.end();
-                if (std::find(target_ages.begin(), end, age) != end && time >= 0)
+                if (std::find(target_ages.begin(), end, age) != end and time >= 0)
                 {
                     double more_targets;
                     if (!parse_double(more_targets, second, max_pos)) { return region; }
@@ -343,7 +343,7 @@ namespace parse
         std::array<double, intersection::TIMESLOTS> actives;
         for (int f = 0; std::getline(factorsStream, facString, ','); ++f)
         {
-            try { actives[f] = std::stof(facString); }
+            try { actives[f] = std::stod(facString); }
             catch (const std::logic_error& ex) {
                 std::clog << "Active factor " << facString << " could not be parsed: " << ex.what() << std::endl;
                 exit(1);
@@ -389,7 +389,7 @@ namespace parse
         std::getline(std::cin, budgetString);
         try
         {
-            budget = std::stof(budgetString);
+            budget = std::stod(budgetString);
         }
         catch (const std::logic_error& ex) {
             std::clog << "Budget: " << budgetString << " could not be parsed: " << ex.what() << std::endl;
