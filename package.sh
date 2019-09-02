@@ -1,3 +1,3 @@
 #!/bin/bash
 
-zip busproject Main.cpp
+zip busproject Main.cpp parse.hpp intersection.hpp knapsack.hpp
