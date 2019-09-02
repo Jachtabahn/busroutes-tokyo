@@ -359,7 +359,7 @@ namespace parse
         std::string group;
         while(getline(stream, group, ','))
         {
-            // remove heading and trailing whitespace
+            // remove all the whitespace
             group.erase(std::remove_if(group.begin(), group.end(), ::isspace), group.end());
 
             assertion(group.size() == 1, "Age group consists of more than a single character");
