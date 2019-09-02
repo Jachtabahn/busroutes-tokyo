@@ -59,8 +59,9 @@ namespace intersection
 {
     // constants
     const int TIMESLOTS = 3;
-    const int MAX_BUSES = 4;
     const double EPSILON = 1e-12;
+
+    // boundary box constants
     const Point infimum {-std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()};
     const Point supremum {std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()};
     const int MIN = 0;
@@ -157,17 +158,12 @@ namespace intersection
         std::vector<std::unique_ptr<intersection::Region>>& regions,
         std::vector<std::unique_ptr<intersection::Route>>& routes)
     {
-        std::string intersectFile = "intersect.csv";
-        std::ofstream intersectStream {intersectFile};
-
         for (auto routeIt = routes.begin(), routeEnd = routes.end(); routeIt != routeEnd; ++routeIt)
         {
             auto& route = *routeIt;
             auto maxBuses = std::max({route->buses[0], route->buses[1], route->buses[2]});
             route->benefits.resize(maxBuses);
             std::fill(route->benefits.begin(), route->benefits.end(), 0.0);
-
-            intersectStream << route->outputId;
 
             for (auto regionIt = regions.begin(), regionsEnd = regions.end(); regionIt != regionsEnd; ++regionIt)
             {
@@ -176,17 +172,8 @@ namespace intersection
                 bool maybe = mayIntersect(region->box, route->box);
                 if (!maybe) { continue; }
 
-                // int my_mesh_id = 533935682;
-                // if (route->outputId == 60 and region->meshId == my_mesh_id)
-                // {
-                //     std::clog << "Polygon of region with mesh id " << my_mesh_id << std::endl;
-                //     std::clog << region->polygon << std::endl;
-                // }
-
                 bool intersects = intersection::has(route->polylines, region->polygon);
                 if (!intersects) { continue; }
-
-                intersectStream << "," << region->meshId;
 
                 for (int s = 0; s < TIMESLOTS; ++s)
                 {
@@ -198,14 +185,6 @@ namespace intersection
                     }
                 }
             }
-            intersectStream << std::endl;
-
-            // int my_route_id = 60;
-            // if (route->outputId == my_route_id)
-            // {
-            //     std::clog << "Polylines of route " << my_route_id << std::endl;
-            //     std::clog << route->polylines << std::endl;
-            // }
         }
     }
 }
