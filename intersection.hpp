@@ -79,42 +79,22 @@ namespace intersection
         return Point{a[0] - b[0], a[1] - b[1]};
     }
 
-    double det(const Point& a, const Point& b)
+    double determinant(const Point& a, const Point& b)
     {
-        return a[0] * b[1] - a[1] * b[0];
+        return a[0]*b[1] - a[1]*b[0];
     }
 
     bool has(const Point& a, const Point& b, const Point& c, const Point& d)
     {
-        // return sign(det(c - a, b - a)) * sign(det(d - a, b - a)) <= 0 && sign(det(a - c, d - c)) * sign(det(b - c, d - c)) <= 0;
-
         if (std::min(a[0], b[0]) > std::max(c[0], d[0])) { return false; }
         if (std::min(a[1], b[1]) > std::max(c[1], d[1])) { return false; }
         if (std::max(a[0], b[0]) < std::min(c[0], d[0])) { return false; }
         if (std::max(a[1], b[1]) < std::min(c[1], d[1])) { return false; }
 
-        double tl = c[0]-b[0];
-        double bl = c[1]-b[1];
-        double trAB = b[0]-a[0];
-        double brAB = b[1]-a[1];
-
-        double det1 = tl*brAB - trAB*bl;
-
-        double tlBD = d[0]-b[0];
-        double blBD = d[1]-b[1];
-
-        double det2 = tlBD*brAB - trAB*blBD;
-
-        tl = a[0]-d[0];
-        bl = a[1]-d[1];
-        double trCD = d[0]-c[0];
-        double brCD = d[1]-c[1];
-
-        double det3 = tl*brCD - trCD*bl;
-
-        double det4 = trCD*blBD - tlBD*brCD;
-
-        return sign(det1) * sign(det2) <= 0 && sign(det3) * sign(det4) <= 0;
+        Point ab = b-a;
+        Point cd = d-c;
+        return sign(determinant(c-b, ab)) * sign(determinant(d-b,ab)) <= 0
+            and sign(determinant(a-d,cd)) * sign(determinant(b-d,cd)) <= 0;
     }
 
     bool has(const Point& a, const Point& b, const std::vector<Point>& polygon)
