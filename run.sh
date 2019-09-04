@@ -1,3 +1,3 @@
 #!/bin/bash
 
-time ./main  < data/example.in > example.out
+./main  < data/example.in > example.out
