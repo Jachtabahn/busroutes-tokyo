@@ -44,44 +44,101 @@ namespace parse
         return false;
     }
 
-    bool parse_int(int& i, std::string::const_iterator& pos, const std::string::const_iterator& max_pos)
+    // adapted from https://www.geeksforgeeks.org/fast-io-for-competitive-programming
+    bool parse_int(int &number, std::string::const_iterator& pos, const std::string::const_iterator& max_pos)
     {
-        for (; pos != max_pos; ++pos)
+        // 1) content check
+        // 2) iterate
+        // 3) bounds check
+        // 4) read
+
+        if (pos == max_pos) { return false; }
+        int character = *pos;
+
+        for (; character == ' ' or character == ':'; character = *pos)
         {
-            if (*pos != ' ' and *pos != ':') { break; }
+            ++pos;
+            if (pos == max_pos) { return false; }
         }
 
-        std::string s{pos, max_pos};
-        try
+        bool negative = false;
+        if (character == '-')
         {
-            i = std::stoi(s);
-            return true;
+            negative = true;
+
+            ++pos;
+            if (pos == max_pos) { return false; }
+            character = *pos;
         }
-        catch (const std::logic_error& ex)
+
+        number = 0;
+        for (; character >= '0' and character <= '9'; character = *pos)
         {
-            std::clog << "Expect an integer, instead got " << s << std::endl;
-            return false;
+            number = number*10 + character-'0';
+
+            ++pos;
+            if (pos == max_pos) { break; }
         }
+
+        if (negative) { number *= -1; }
+        return true;
     }
 
-    bool parse_double(double& d, std::string::const_iterator& pos, const std::string::const_iterator& max_pos)
+    // adapted from https://www.geeksforgeeks.org/fast-io-for-competitive-programming
+    bool parse_double(
+        double &number,
+        std::string::const_iterator& pos,
+        const std::string::const_iterator& max_pos)
     {
-        for (; pos != max_pos; ++pos)
+        // 1) content check
+        // 2) iterate
+        // 3) bounds check
+        // 4) read
+
+        if (pos == max_pos) { return false; }
+        int character = *pos;
+
+        for (; character == ' ' or character == ':'; character = *pos)
         {
-            if (*pos != ' ' and *pos != ':') { break; }
+            ++pos;
+            if (pos == max_pos) { return false; }
         }
 
-        std::string s{pos, max_pos};
-        try
+        bool negative = false;
+        if (character == '-')
         {
-            d = std::stod(s);
-            return true;
+            negative = true;
+
+            ++pos;
+            if (pos == max_pos) { return false; }
+            character = *pos;
         }
-        catch (const std::logic_error& ex)
+
+        double after_comma = 0.0;
+        number = 0;
+        for (; (character >= '0' and character <= '9') or (character == '.' and after_comma == 0.0);
+            character = *pos)
         {
-            std::clog << "Expect a double, instead got " << s << std::endl;
-            return false;
+            if (character == '.')
+            {
+                after_comma = 10;
+            }
+            else if (after_comma == 0.0)
+            {
+                number = number*10 + character-'0';
+            }
+            else
+            {
+                number = number + (character-'0')/after_comma;
+                after_comma *= 10;
+            }
+
+            ++pos;
+            if (pos == max_pos) { break; }
         }
+
+        if (negative) { number *= -1; }
+        return true;
     }
 
     bool parse_polylines(
