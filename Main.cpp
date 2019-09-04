@@ -34,9 +34,9 @@ int main()
 
     clock_t start = clock();
     parse::input(regions, routes, budget, minCost, costGcd);
-    std::clog << "Parsing of all input took " << since(start) << "ms" << std::endl;
-    std::clog << "The minimum cost is " << minCost << std::endl;
-    std::clog << "The greatest common divisor of all costs is " << costGcd << std::endl;
+    // std::clog << "Parsing of all input took " << since(start) << "ms" << std::endl;
+    // std::clog << "The minimum cost is " << minCost << std::endl;
+    // std::clog << "The greatest common divisor of all costs is " << costGcd << std::endl;
 
     start = clock();
     intersection::all(regions, routes);
@@ -66,7 +66,7 @@ int main()
     for (const auto& iter : allocation)
     {
         std::cout << iter.first << "," << iter.second << "\n";
-        std::clog << iter.first << "," << iter.second << std::endl;
+        // std::clog << iter.first << "," << iter.second << std::endl;
     }
 
     std::clog << "----------------------------------\n";

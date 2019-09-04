@@ -85,7 +85,7 @@ namespace intersection
         return a[0]*b[1] - a[1]*b[0];
     }
 
-    bool has(const Point& a, const Point& b, const Point& c, const Point& d)
+    bool must(const Point& a, const Point& b, const Point& c, const Point& d)
     {
         if (std::min(a[0], b[0]) > std::max(c[0], d[0])) { return false; }
         if (std::min(a[1], b[1]) > std::max(c[1], d[1])) { return false; }
@@ -98,29 +98,29 @@ namespace intersection
             and sign(determinant(a-d,cd)) * sign(determinant(b-d,cd)) <= 0;
     }
 
-    bool has(const Point& a, const Point& b, const std::vector<Point>& polygon)
+    bool must(const Point& a, const Point& b, const std::vector<Point>& polygon)
     {
         for (size_t i = 0, size = polygon.size()-1; i < size; ++i)
         {
-            if (has(a, b, polygon[i], polygon[i + 1])) { return true; }
+            if (must(a, b, polygon[i], polygon[i + 1])) { return true; }
         }
         return false;
     }
 
-    bool has(const std::vector<Point>& polyline, const std::vector<Point>& polygon)
+    bool must(const std::vector<Point>& polyline, const std::vector<Point>& polygon)
     {
         for (size_t i = 0, size = polyline.size()-1; i < size; ++i)
         {
-            if (has(polyline[i], polyline[i + 1], polygon)) { return true; }
+            if (must(polyline[i], polyline[i + 1], polygon)) { return true; }
         }
         return false;
     }
 
-    bool has(const std::vector<std::vector<Point>>& polylines, const std::vector<Point>& polygon)
+    bool must(const std::vector<std::vector<Point>>& polylines, const std::vector<Point>& polygon)
     {
         for (auto it = polylines.begin(), end = polylines.end(); it != end; ++it)
         {
-            if (has(*it, polygon)) { return true; }
+            if (must(*it, polygon)) { return true; }
         }
         return false;
     }
@@ -145,7 +145,7 @@ namespace intersection
         Box box {supremum, infimum};
     };
 
-    bool mayIntersect(const intersection::Box& first, const intersection::Box& second)
+    bool may(const intersection::Box& first, const intersection::Box& second)
     {
         if (first[MIN][X] > second[MAX][X]) { return false; }
         if (first[MIN][Y] > second[MAX][Y]) { return false; }
@@ -169,10 +169,10 @@ namespace intersection
             {
                 auto& region = *regionIt;
 
-                bool maybe = mayIntersect(region->box, route->box);
+                bool maybe = intersection::may(region->box, route->box);
                 if (!maybe) { continue; }
 
-                bool intersects = intersection::has(route->polylines, region->polygon);
+                bool intersects = intersection::must(route->polylines, region->polygon);
                 if (!intersects) { continue; }
 
                 for (int s = 0; s < TIMESLOTS; ++s)
