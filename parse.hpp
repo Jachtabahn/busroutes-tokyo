@@ -246,7 +246,8 @@ namespace parse
         std::vector<std::unique_ptr<intersection::Region>>& regions,
         std::string filename,
         std::string target_ages,
-        std::array<double, intersection::TIMESLOTS> active_factors)
+        std::array<double, intersection::TIMESLOTS> active_factors,
+        const intersection::Box& routesBoundary)
     {
         std::ifstream stream {filename};
         if (!stream.is_open())
@@ -271,22 +272,26 @@ namespace parse
             std::unique_ptr<intersection::Region> region = parse::region(line, active_factors, target_ages);
             parseTime += since(parseStart);
 
-            if (region)
+            if (not region or not intersection::may(region->box, routesBoundary))
             {
-                regions.push_back(std::move(region));
+                read_start = clock();
+                continue;
             }
+
+            regions.push_back(std::move(region));
             read_start = clock();
         }
-        std::clog << "I found " << regions.size() << " regions." << std::endl;
-        std::clog << "Reading all " << lines << " lines from " << filename << " took me "
-            << readTime << "ms" << std::endl;
-        std::clog << "Just interpreting the regions took " << parseTime << "ms" << std::endl;
+        // std::clog << "Found " << regions.size() << " regions." << std::endl;
+        // std::clog << "Reading all " << lines << " lines from " << filename << " took me "
+        //     << readTime << "ms" << std::endl;
+        std::clog << "Interpreting the regions took " << parseTime << "ms" << std::endl;
     }
 
     void all_routes(
         std::vector<std::unique_ptr<intersection::Route>>& routes,
         double& minCost,
         double& costGcd,
+        intersection::Box& routesBoundary,
         std::string filename)
     {
         std::ifstream stream {filename};
@@ -319,12 +324,17 @@ namespace parse
 
             if (route->cost < minCost) { minCost = route->cost; }
 
+            if (route->box[0][0] < routesBoundary[0][0]) { routesBoundary[0][0] = route->box[0][0]; }
+            if (route->box[0][1] < routesBoundary[0][1]) { routesBoundary[0][1] = route->box[0][1]; }
+            if (route->box[1][0] > routesBoundary[1][0]) { routesBoundary[1][0] = route->box[1][0]; }
+            if (route->box[1][1] > routesBoundary[1][1]) { routesBoundary[1][1] = route->box[1][1]; }
+
             read_start = clock();
         }
-        std::clog << "I found " << routes.size() << " routes." << std::endl;
-        std::clog << "Reading all " << lines << " lines from " << filename << " took me "
-            << readTime << "ms" << std::endl;
-        std::clog << "Just interpreting the routes took " << parseTime << "ms" << std::endl;
+        // std::clog << "Found " << routes.size() << " routes." << std::endl;
+        // std::clog << "Reading all " << lines << " lines from " << filename << " took me "
+        //     << readTime << "ms" << std::endl;
+        std::clog << "Interpreting the routes took " << parseTime << "ms" << std::endl;
     }
 
     std::array<double, intersection::TIMESLOTS> active_factors(std::string filename)
@@ -382,7 +392,7 @@ namespace parse
         std::string ageString;
         std::getline(std::cin, ageString);
         std::string target_ages = parse::target_ages(ageString);
-        std::clog << "The target age groups are " << target_ages << std::endl;
+        // std::clog << "The target age groups are " << target_ages << std::endl;
 
         // Line 2: budget
         std::string budgetString;
@@ -395,7 +405,7 @@ namespace parse
             std::clog << "Budget: " << budgetString << " could not be parsed: " << ex.what() << std::endl;
             exit(1);
         }
-        std::clog << "The total budget is " << budget << std::endl;
+        // std::clog << "The total budget is " << budget << std::endl;
 
         // Line 3: path to regions geojson
         std::string populationPath;
@@ -414,14 +424,16 @@ namespace parse
 
         start = clock();
         std::array<double, intersection::TIMESLOTS> active_factors = parse::active_factors(activeCsv);
-        std::clog << "The activity probabilities for the time slots are " << active_factors[0] << ", " << active_factors[1] << ", " << active_factors[2] << std::endl;
+        // std::clog << "The activity probabilities for the time slots are " << active_factors[0] << ", " << active_factors[1] << ", " << active_factors[2] << std::endl;
+
+        intersection::Box routesBoundary {intersection::supremum, intersection::infimum};
 
         start = clock();
-        parse::all_routes(routes, minCost, costGcd, routePath);
-        std::clog << "Parsing all the routes took " << since(start) << "ms" << std::endl;
+        parse::all_routes(routes, minCost, costGcd, routesBoundary, routePath);
+        // std::clog << "Parsing all the routes took " << since(start) << "ms" << std::endl;
 
         start = clock();
-        parse::all_regions(regions, populationPath, target_ages, active_factors);
-        std::clog << "Parsing all the regions took " << since(start) << "ms" << std::endl;
+        parse::all_regions(regions, populationPath, target_ages, active_factors, routesBoundary);
+        // std::clog << "Parsing all the regions took " << since(start) << "ms" << std::endl;
     }
 }
