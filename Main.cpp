@@ -23,10 +23,18 @@ double since(clock_t start)
 
 #include "parse.hpp"
 
+/**
+    Program entry point. Reads five lines from stdin, finds an optimal route allocation
+    for the described problem instance and writes it to stdout.
+
+    If there is some error somewhere in a subroutine,
+    the program will immediately exit with return code -1.
+
+    @return 0 meaning success
+*/
 int main()
 {
     clock_t total_start = clock();
-    std::clog.precision(std::numeric_limits<double>::max_digits10);
 
     std::vector<std::unique_ptr<intersection::Region>> regions;
     std::vector<std::unique_ptr<intersection::Route>> routes;
@@ -35,7 +43,13 @@ int main()
     double min_cost {std::numeric_limits<double>::infinity()};
     std::map<int, int> allocation;
 
-    parse::input(regions, routes, budget, min_cost, cost_gcd);
+    std::string age_string = parse::line();
+    std::string budget_string = parse::line();
+    std::string regions_path = parse::line();
+    std::string routes_path = parse::line();
+    std::string active_path = parse::line();
+    parse::input(regions, routes, budget, min_cost, cost_gcd,
+        age_string, budget_string, regions_path, routes_path, active_path);
 
     intersection::all(regions, routes);
 

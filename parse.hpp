@@ -355,20 +355,21 @@ namespace parse
         Parses a GeoJSON file containing region data.
 
         @param regions the vector to store the smart pointers to all the parsed regions
-        @param filename path to the GeoJSON file
         @param target_ages contains the target age groups
         @param active_factors activity probabilities, that is, expected ratio of people outside of buildings at different times
         @param routes_boundary the box containing all the route polylines
+        @param filename path to the GeoJSON file
     */
     void all_regions(
         std::vector<std::unique_ptr<intersection::Region>>& regions,
-        std::string filename,
         std::string target_ages,
         std::array<double, intersection::TIMESLOTS> active_factors,
-        const intersection::Box& routes_boundary)
+        const intersection::Box& routes_boundary,
+        const std::string& filename
+        )
     {
         std::ifstream stream {filename};
-        if (!stream.is_open())
+        if (not stream.is_open())
         {
             std::clog << "Could not find the regions geojson file " << filename << std::endl;
             exit(-1);
@@ -402,10 +403,10 @@ namespace parse
         double& min_cost,
         double& cost_gcd,
         intersection::Box& routes_boundary,
-        std::string filename)
+        const std::string& filename)
     {
         std::ifstream stream {filename};
-        if (!stream.is_open())
+        if (not stream.is_open())
         {
             std::clog << "Could not find the routes geojson file " << filename << std::endl;
             exit(-1);
@@ -436,26 +437,30 @@ namespace parse
         @param filename path to the file with the activity factors in specific CSV format
         @return the activity factors
     */
-    std::array<double, intersection::TIMESLOTS> active_factors(std::string filename)
+    std::array<double, intersection::TIMESLOTS> active_factors(const std::string& filename)
     {
-        std::ifstream factorsStream (filename);
-        if (!factorsStream.is_open())
+        std::ifstream stream (filename);
+        if (not stream.is_open())
         {
             std::clog << "Route geojson file missing!" << std::endl;
-            exit(1);
+            exit(-1);
         }
 
-        std::string facString;
-        facString.reserve(100);
-        factorsStream >> facString;
-        std::getline(factorsStream, facString, ',');
+        std::string factor_string;
+        // skip first line
+        std::getline(stream, factor_string);
+        // skip first column of second line
+        std::getline(stream, factor_string, ',');
+
+        // read the columns 2,3,4 of second line
         std::array<double, intersection::TIMESLOTS> actives;
-        for (int f = 0; std::getline(factorsStream, facString, ','); ++f)
+        for (int f = 0; std::getline(stream, factor_string, ','); ++f)
         {
-            try { actives[f] = std::stod(facString); }
-            catch (const std::logic_error& ex) {
-                std::clog << "Active factor " << facString << " could not be parsed: " << ex.what() << std::endl;
-                exit(1);
+            try { actives[f] = std::stod(factor_string); }
+            catch (const std::logic_error& ex)
+            {
+                std::clog << "Active factor " << factor_string << " could not be parsed: " << ex.what() << std::endl;
+                exit(-1);
             }
         }
         return actives;
@@ -467,25 +472,55 @@ namespace parse
         @param age_string a CSV string with age groups
         @return string of characters where each character represents an age group
     */
-    std::string target_ages(std::string age_string)
+    std::string target_ages(const std::string& age_string)
     {
-        std::string target_ages;
         std::stringstream stream(age_string);
+        std::string target_ages;
         std::string group;
-        while(getline(stream, group, ','))
+        while(std::getline(stream, group, ','))
         {
             // remove all the whitespace
             group.erase(std::remove_if(group.begin(), group.end(), ::isspace), group.end());
-
             if (group.size() != 1)
             {
                 std::clog << "Age group \"" << group << "\" does not consist of a single character";
                 exit(-1);
             }
+
             target_ages.push_back(group[0]);
         }
-
         return target_ages;
+    }
+
+    /**
+        Parses the total given budget from a string.
+
+        @param budget_string the string containing the number
+        @return total given budget
+    */
+    double budget(const std::string& budget_string)
+    {
+        double total_budget;
+        try { total_budget = std::stod(budget_string); }
+        catch (const std::logic_error& ex)
+        {
+            std::clog << "Budget: " << budget_string << " could not be parsed: " << ex.what() << std::endl;
+            exit(-1);
+        }
+        return total_budget;
+    }
+
+    /**
+        Reads on line from standard input stream. Removes trailing spaces.
+
+        @return read line
+    */
+    std::string line()
+    {
+        std::string line;
+        std::getline(std::cin, line);
+        while (isspace(line.back())) { line.pop_back(); }
+        return line;
     }
 
     /**
@@ -497,59 +532,33 @@ namespace parse
         @param budget total given budget
         @param min_cost this is the minimum cost of any wrapping bus (needed for optimization)
         @param cost_gcd this is the greatest divisor of the costs of all wrapping buses (needed for optimization)
+        @param age_string The comma-separated string of age groups read from the stdin
+        @param budget_string The budget string read from stdin
+        @param regions_path The path to the GeoJSON file with region data
+        @param routes_path The path to the GeoJSON file with route data
+        @param active_path The path to the CSV file with activity probabilities
     */
     void input(
         std::vector<std::unique_ptr<intersection::Region>>& regions,
         std::vector<std::unique_ptr<intersection::Route>>& routes,
         double& budget,
         double& min_cost,
-        double& cost_gcd)
+        double& cost_gcd,
+        const std::string& age_string,
+        const std::string& budget_string,
+        const std::string& regions_path,
+        const std::string& routes_path,
+        const std::string& active_path)
     {
-        // clock_t start = clock();
-
-        // Line 1: target ages
-        std::string age_string;
-        std::getline(std::cin, age_string);
         std::string target_ages = parse::target_ages(age_string);
-        // std::clog << "The target age groups are " << target_ages << std::endl;
 
-        // Line 2: budget
-        std::string budgetString;
-        std::getline(std::cin, budgetString);
-        try { budget = std::stod(budgetString); }
-        catch (const std::logic_error& ex) {
-            std::clog << "Budget: " << budgetString << " could not be parsed: " << ex.what() << std::endl;
-            exit(1);
-        }
-        // std::clog << "The total budget is " << budget << std::endl;
-
-        // Line 3: path to regions geojson
-        std::string populationPath;
-        std::getline(std::cin, populationPath);
-        while (isspace(populationPath.back())) { populationPath.pop_back(); }
-
-        // Line 4: path to routes geojson
-        std::string routePath;
-        std::getline(std::cin, routePath);
-        while (isspace(routePath.back())) { routePath.pop_back(); }
-
-        // Line 5: path to activity probabilities csv
-        std::string activeCsv;
-        std::getline(std::cin, activeCsv);
-        while (isspace(activeCsv.back())) { activeCsv.pop_back(); }
-
-        // start = clock();
-        std::array<double, intersection::TIMESLOTS> active_factors = parse::active_factors(activeCsv);
-        // std::clog << "The activity probabilities for the time slots are " << active_factors[0] << ", " << active_factors[1] << ", " << active_factors[2] << std::endl;
+        budget = parse::budget(budget_string);
 
         intersection::Box routes_boundary {intersection::supremum, intersection::infimum};
+        parse::all_routes(routes, min_cost, cost_gcd, routes_boundary, routes_path);
 
-        // start = clock();
-        parse::all_routes(routes, min_cost, cost_gcd, routes_boundary, routePath);
-        // std::clog << "Parsing all the routes took " << since(start) << "ms" << std::endl;
+        std::array<double, intersection::TIMESLOTS> active_factors = parse::active_factors(active_path);
 
-        // start = clock();
-        parse::all_regions(regions, populationPath, target_ages, active_factors, routes_boundary);
-        // std::clog << "Parsing all the regions took " << since(start) << "ms" << std::endl;
+        parse::all_regions(regions, target_ages, active_factors, routes_boundary, regions_path);
     }
 }
