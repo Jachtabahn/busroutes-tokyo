@@ -2,17 +2,15 @@
 
 namespace parse
 {
-    void assertion(bool check, std::string msg)
-    {
-        if (!check)
-        {
-            std::clog << msg << std::endl;
-            exit(-1);
-        }
-    }
+    /**
+        Advances the string position until after the next occurrence of '[' or ']',
+        whichever happens first. In the case of an opening bracket, return true,
+        in the other case false.
 
-    // true if there is a next [ with at least one more character after pos
-    // false if there is a ] before any [, or the input max_pos
+        @param pos the string iterator to be advanced
+        @param max_pos the end of the string range
+        @return if encountered '[' before any ']' then true, otherwise false
+    */
     bool next(std::string::const_iterator& pos, const std::string::const_iterator& max_pos)
     {
         for (; pos != max_pos; ++pos)
@@ -30,7 +28,14 @@ namespace parse
         return false;
     }
 
-    // true if char found and skipped
+    /**
+        Advances the string position until one after the next occurrence of the given character.
+
+        @param skip given character
+        @param pos the string iterator to be advanced
+        @param max_pos the end of the string range
+        @return false if the range ended before we found the character, otherwise true
+    */
     bool skip(char skip, std::string::const_iterator& pos, const std::string::const_iterator& max_pos)
     {
         for (; pos != max_pos; ++pos)
@@ -44,8 +49,18 @@ namespace parse
         return false;
     }
 
-    // adapted from https://www.geeksforgeeks.org/fast-io-for-competitive-programming
-    bool parse_int(int &number, std::string::const_iterator& pos, const std::string::const_iterator& max_pos)
+    /**
+        Parses an integer from the string range [pos, max_pos). The integer may follow any sequence of
+        character ':' and ' '. If the first character following that sequence is not a digit, the parsed
+        integer is 0.
+        Adapted from https://www.geeksforgeeks.org/fast-io-for-competitive-programming
+
+        @param number the integer to store the result
+        @param pos the beginning of the string range
+        @param max_pos the end of the string range
+        @return false if the range ended unexpectedly, otherwise true
+    */
+    bool int_number(int &number, std::string::const_iterator& pos, const std::string::const_iterator& max_pos)
     {
         // 1) content check
         // 2) iterate
@@ -84,8 +99,18 @@ namespace parse
         return true;
     }
 
-    // adapted from https://www.geeksforgeeks.org/fast-io-for-competitive-programming
-    bool parse_double(
+    /**
+        Parses a double from the string range [pos, max_pos). The double may follow any sequence of
+        character ':' and ' '. If the first character following that sequence is not a digit or '.',
+        the parsed double is 0.
+        Adapted from https://www.geeksforgeeks.org/fast-io-for-competitive-programming
+
+        @param number the double to store the result
+        @param pos the beginning of the string range
+        @param max_pos the end of the string range
+        @return false if the range ended unexpectedly, otherwise true
+    */
+    bool double_number(
         double &number,
         std::string::const_iterator& pos,
         const std::string::const_iterator& max_pos)
@@ -119,14 +144,8 @@ namespace parse
         for (; (character >= '0' and character <= '9') or (character == '.' and after_comma == 0.0);
             character = *pos)
         {
-            if (character == '.')
-            {
-                after_comma = 10;
-            }
-            else if (after_comma == 0.0)
-            {
-                number = number*10 + character-'0';
-            }
+            if (character == '.') { after_comma = 10; }
+            else if (after_comma == 0.0) { number = number*10 + character-'0'; }
             else
             {
                 number = number + (character-'0')/after_comma;
@@ -141,7 +160,16 @@ namespace parse
         return true;
     }
 
-    bool parse_polylines(
+    /**
+        Parses a list of lists of pairs of points given in the JSON syntax.
+
+        @param polylines the vector to store the result
+        @param box this will store the boundary box of all parsed points
+        @param pos the beginning of the string range
+        @param max_pos the end of the string range
+        @return false if the range ended unexpectedly, otherwise true
+    */
+    bool polylines_from_array(
         std::vector<std::vector<intersection::Point>>& polylines,
         intersection::Box& box,
         std::string::const_iterator& pos,
@@ -159,9 +187,9 @@ namespace parse
                 polyline.emplace_back(intersection::Point{});
                 intersection::Point& point = polyline.back();
 
-                parse_double(point[0], pos, max_pos);
+                parse::double_number(point[0], pos, max_pos);
                 if (!skip(',', pos, max_pos)) { return false; }
-                parse_double(point[1], pos, max_pos);
+                parse::double_number(point[1], pos, max_pos);
                 if (!skip(']', pos, max_pos)) { return false; }
 
                 if (point[0] < box[0][0]) { box[0][0] = point[0]; }
@@ -173,7 +201,16 @@ namespace parse
         return true;
     }
 
-    bool parse_polygon(
+    /**
+        Parses a list of lists of lists of pairs of points given in the JSON syntax.
+
+        @param polygon the vector to store the result
+        @param box this will store the boundary box of all parsed points
+        @param pos the beginning of the string range
+        @param max_pos the end of the string range
+        @return false if the range ended unexpectedly, otherwise true
+    */
+    bool polygon_from_array(
         std::vector<intersection::Point>& polygon,
         intersection::Box& box,
         std::string::const_iterator& pos,
@@ -189,9 +226,9 @@ namespace parse
                 polygon.emplace_back(intersection::Point{});
                 intersection::Point& point = polygon.back();
 
-                parse_double(point[0], pos, max_pos);
+                parse::double_number(point[0], pos, max_pos);
                 if (!skip(',', pos, max_pos)) { return false; }
-                parse_double(point[1], pos, max_pos);
+                parse::double_number(point[1], pos, max_pos);
                 if (!skip(']', pos, max_pos)) { return false; }
 
                 if (point[0] < box[0][0]) { box[0][0] = point[0]; }
@@ -205,6 +242,16 @@ namespace parse
         return true;
     }
 
+    /**
+        Parses a region GeoJSON object. The parsed region will contain target numbers that have
+        already been multiplied with time slot lengths, activity probabilities and filtered through
+        age groups.
+
+        @param line the line containing the GeoJSON string
+        @param active_factors the activity probabilities of targets in different time slots
+        @param target_ages the string of characters describing the age groups of our targets
+        @return a smart pointer to a region
+    */
     std::unique_ptr<intersection::Region> region(
         const std::string& line,
         std::array<double, intersection::TIMESLOTS> active_factors,
@@ -226,7 +273,7 @@ namespace parse
             }
             else if (json_string == "MESH_ID")
             {
-                if (!parse_int(region->meshId, second, max_pos)) { return region; }
+                if (!parse::int_number(region->meshId, second, max_pos)) { return region; }
             }
             else if (second-1-first == 6 and json_string[0] == 'G'
                 and json_string[2] == '_' and json_string[3] == 'T' and json_string[4] == 'Z')
@@ -238,13 +285,13 @@ namespace parse
                 if (std::find(target_ages.begin(), end, age) != end and time >= 0)
                 {
                     double more_targets;
-                    if (!parse_double(more_targets, second, max_pos)) { return region; }
+                    if (!parse::double_number(more_targets, second, max_pos)) { return region; }
                     region->targets[time] += more_targets * active_factors[time] * slot_length[time];
                 }
             }
             else if (json_string == "coordinates")
             {
-                if (!parse_polygon(region->polygon, region->box, second, max_pos)) { return region; }
+                if (!parse::polygon_from_array(region->polygon, region->box, second, max_pos)) { return region; }
             }
 
             skip('"', second, max_pos);
@@ -253,6 +300,12 @@ namespace parse
         return region;
     }
 
+    /**
+        Parses a route GeoJSON object.
+
+        @param line the line containing the GeoJSON string
+        @return a smart pointer to a region
+    */
     std::unique_ptr<intersection::Route> route(const std::string& line)
     {
         std::unique_ptr<intersection::Route> route;
@@ -263,34 +316,33 @@ namespace parse
         while (skip('"', second, max_pos))
         {
             std::string json_string {first, second-1};
-            // std::clog << "Found json string: " << json_string << std::endl;
             if (json_string == "Feature")
             {
                 route = std::make_unique<intersection::Route>();
             }
             else if (json_string == "RouteID")
             {
-                if (!parse_int(route->outputId, second, max_pos)) { return route; }
+                if (!parse::int_number(route->outputId, second, max_pos)) { return route; }
             }
             else if (json_string == "Cost")
             {
-                if (!parse_double(route->cost, second, max_pos)) { return route; }
+                if (!parse::double_number(route->cost, second, max_pos)) { return route; }
             }
             else if (json_string == "TZ2_Max")
             {
-                if (!parse_int(route->buses[0], second, max_pos)) { return route; }
+                if (!parse::int_number(route->buses[0], second, max_pos)) { return route; }
             }
             else if (json_string == "TZ3_Max")
             {
-                if (!parse_int(route->buses[1], second, max_pos)) { return route; }
+                if (!parse::int_number(route->buses[1], second, max_pos)) { return route; }
             }
             else if (json_string == "TZ4_Max")
             {
-                if (!parse_int(route->buses[2], second, max_pos)) { return route; }
+                if (!parse::int_number(route->buses[2], second, max_pos)) { return route; }
             }
             else if (json_string == "coordinates")
             {
-                if (!parse_polylines(route->polylines, route->box, second, max_pos)) { return route; }
+                if (!parse::polylines_from_array(route->polylines, route->box, second, max_pos)) { return route; }
             }
 
             skip('"', second, max_pos);
@@ -299,12 +351,21 @@ namespace parse
         return route;
     }
 
+    /**
+        Parses a GeoJSON file containing region data.
+
+        @param regions the vector to store the smart pointers to all the parsed regions
+        @param filename path to the GeoJSON file
+        @param target_ages contains the target age groups
+        @param active_factors activity probabilities, that is, expected ratio of people outside of buildings at different times
+        @param routes_boundary the box containing all the route polylines
+    */
     void all_regions(
         std::vector<std::unique_ptr<intersection::Region>>& regions,
         std::string filename,
         std::string target_ages,
         std::array<double, intersection::TIMESLOTS> active_factors,
-        const intersection::Box& routesBoundary)
+        const intersection::Box& routes_boundary)
     {
         std::ifstream stream {filename};
         if (!stream.is_open())
@@ -314,41 +375,33 @@ namespace parse
         }
 
         std::string line;
-        line.reserve(10000);
-
-        size_t lines = 0;
-        double readTime = 0.;
-        double parseTime = 0.;
-        clock_t read_start = clock();
         while (std::getline(stream, line))
         {
-            readTime += since(read_start);
-            ++lines;
-
-            clock_t parseStart = clock();
             std::unique_ptr<intersection::Region> region = parse::region(line, active_factors, target_ages);
-            parseTime += since(parseStart);
 
-            if (not region or not intersection::may(region->box, routesBoundary))
+            if (not region or not intersection::may(region->box, routes_boundary))
             {
-                read_start = clock();
                 continue;
             }
 
             regions.push_back(std::move(region));
-            read_start = clock();
         }
-        // std::clog << "Found " << regions.size() << " regions." << std::endl;
-        // std::clog << "Reading all " << lines << " lines from " << filename << " took me "
-        //     << readTime << "ms" << std::endl;
-        std::clog << "Interpreting the regions took " << parseTime << "ms" << std::endl;
     }
 
+    /**
+        Parses a GeoJSON file containing route data.
+
+        @param routes the vector to store the smart pointers to all the parsed routes
+        @param min_cost this is the minimum cost of any wrapping bus (needed for optimization)
+        @param cost_gcd this is the greatest divisor of the costs of all wrapping buses (needed for optimization)
+        @param routes_boundary the box containing all the route polylines
+        @param filename path to the GeoJSON file
+    */
     void all_routes(
         std::vector<std::unique_ptr<intersection::Route>>& routes,
-        double& minCost,
-        double& costGcd,
-        intersection::Box& routesBoundary,
+        double& min_cost,
+        double& cost_gcd,
+        intersection::Box& routes_boundary,
         std::string filename)
     {
         std::ifstream stream {filename};
@@ -359,41 +412,30 @@ namespace parse
         }
 
         std::string line;
-        line.reserve(10000);
-        size_t lines = 0;
-        double readTime = 0.;
-        double parseTime = 0.;
-        clock_t read_start = clock();
         while (std::getline(stream, line))
         {
-            ++lines;
-            readTime += since(read_start);
-
-            // this is a route
-            clock_t parseStart = clock();
             std::unique_ptr<intersection::Route> new_route = parse::route(line);
-            parseTime += since(parseStart);
             if (!new_route) { continue; }
             routes.push_back(std::move(new_route));
 
             auto& route = routes.back();
-            costGcd = static_cast<double>(knapsack::computeGcd(static_cast<int>(costGcd), static_cast<int>(route->cost)));
+            cost_gcd = static_cast<double>(knapsack::compute_gcd(static_cast<int>(cost_gcd), static_cast<int>(route->cost)));
 
-            if (route->cost < minCost) { minCost = route->cost; }
+            if (route->cost < min_cost) { min_cost = route->cost; }
 
-            if (route->box[0][0] < routesBoundary[0][0]) { routesBoundary[0][0] = route->box[0][0]; }
-            if (route->box[0][1] < routesBoundary[0][1]) { routesBoundary[0][1] = route->box[0][1]; }
-            if (route->box[1][0] > routesBoundary[1][0]) { routesBoundary[1][0] = route->box[1][0]; }
-            if (route->box[1][1] > routesBoundary[1][1]) { routesBoundary[1][1] = route->box[1][1]; }
-
-            read_start = clock();
+            if (route->box[0][0] < routes_boundary[0][0]) { routes_boundary[0][0] = route->box[0][0]; }
+            if (route->box[0][1] < routes_boundary[0][1]) { routes_boundary[0][1] = route->box[0][1]; }
+            if (route->box[1][0] > routes_boundary[1][0]) { routes_boundary[1][0] = route->box[1][0]; }
+            if (route->box[1][1] > routes_boundary[1][1]) { routes_boundary[1][1] = route->box[1][1]; }
         }
-        // std::clog << "Found " << routes.size() << " routes." << std::endl;
-        // std::clog << "Reading all " << lines << " lines from " << filename << " took me "
-        //     << readTime << "ms" << std::endl;
-        std::clog << "Interpreting the routes took " << parseTime << "ms" << std::endl;
     }
 
+    /**
+        Parses activity factors, that is, the expected ratios of people outside of buildings at different times.
+
+        @param filename path to the file with the activity factors in specific CSV format
+        @return the activity factors
+    */
     std::array<double, intersection::TIMESLOTS> active_factors(std::string filename)
     {
         std::ifstream factorsStream (filename);
@@ -419,45 +461,62 @@ namespace parse
         return actives;
     }
 
-    std::string target_ages(std::string ageString)
+    /**
+        Parses target age groups. These are the age groups of people we target with advertisements.
+
+        @param age_string a CSV string with age groups
+        @return string of characters where each character represents an age group
+    */
+    std::string target_ages(std::string age_string)
     {
         std::string target_ages;
-        std::stringstream stream(ageString);
+        std::stringstream stream(age_string);
         std::string group;
         while(getline(stream, group, ','))
         {
             // remove all the whitespace
             group.erase(std::remove_if(group.begin(), group.end(), ::isspace), group.end());
 
-            assertion(group.size() == 1, "Age group consists of more than a single character");
+            if (group.size() != 1)
+            {
+                std::clog << "Age group \"" << group << "\" does not consist of a single character";
+                exit(-1);
+            }
             target_ages.push_back(group[0]);
         }
 
         return target_ages;
     }
 
+    /**
+        Parses the entire input, that is, the target age groups, the budget, the activity probabilities,
+        the regions and the routes.
+
+        @param regions vector to store the regions
+        @param routes vector to store the routes
+        @param budget total given budget
+        @param min_cost this is the minimum cost of any wrapping bus (needed for optimization)
+        @param cost_gcd this is the greatest divisor of the costs of all wrapping buses (needed for optimization)
+    */
     void input(
         std::vector<std::unique_ptr<intersection::Region>>& regions,
         std::vector<std::unique_ptr<intersection::Route>>& routes,
         double& budget,
-        double& minCost,
-        double& costGcd)
+        double& min_cost,
+        double& cost_gcd)
     {
-        clock_t start = clock();
+        // clock_t start = clock();
 
         // Line 1: target ages
-        std::string ageString;
-        std::getline(std::cin, ageString);
-        std::string target_ages = parse::target_ages(ageString);
+        std::string age_string;
+        std::getline(std::cin, age_string);
+        std::string target_ages = parse::target_ages(age_string);
         // std::clog << "The target age groups are " << target_ages << std::endl;
 
         // Line 2: budget
         std::string budgetString;
         std::getline(std::cin, budgetString);
-        try
-        {
-            budget = std::stod(budgetString);
-        }
+        try { budget = std::stod(budgetString); }
         catch (const std::logic_error& ex) {
             std::clog << "Budget: " << budgetString << " could not be parsed: " << ex.what() << std::endl;
             exit(1);
@@ -479,18 +538,18 @@ namespace parse
         std::getline(std::cin, activeCsv);
         while (isspace(activeCsv.back())) { activeCsv.pop_back(); }
 
-        start = clock();
+        // start = clock();
         std::array<double, intersection::TIMESLOTS> active_factors = parse::active_factors(activeCsv);
         // std::clog << "The activity probabilities for the time slots are " << active_factors[0] << ", " << active_factors[1] << ", " << active_factors[2] << std::endl;
 
-        intersection::Box routesBoundary {intersection::supremum, intersection::infimum};
+        intersection::Box routes_boundary {intersection::supremum, intersection::infimum};
 
-        start = clock();
-        parse::all_routes(routes, minCost, costGcd, routesBoundary, routePath);
+        // start = clock();
+        parse::all_routes(routes, min_cost, cost_gcd, routes_boundary, routePath);
         // std::clog << "Parsing all the routes took " << since(start) << "ms" << std::endl;
 
-        start = clock();
-        parse::all_regions(regions, populationPath, target_ages, active_factors, routesBoundary);
+        // start = clock();
+        parse::all_regions(regions, populationPath, target_ages, active_factors, routes_boundary);
         // std::clog << "Parsing all the regions took " << since(start) << "ms" << std::endl;
     }
 }
