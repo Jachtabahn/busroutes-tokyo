@@ -13,7 +13,7 @@ The most time consuming part of parsing the input is parsing the lines that desc
 
 ## Computing intersections
 
-To be able to identify the best routes, it is necessary to know their *benefits*, that is, the number of targets they will probably reach. For that, we need to compute the set of regions that a given route visits. Here, I assume that no route fully stays within one particular region, in which case the set of visited regions is the same as the set of intersected regions.
+To be able to identify the best routes, it is necessary to know their *benefits*, that is, for each route, how many targets the buses on that route will probably reach. For that, we need to compute the set of regions that a given route visits. Here, I assume that no route fully stays within one particular region, in which case the set of visited regions is the same as the set of regions whose boundaries are intersected.
 
 To verify that a route intersects a region, I verify that some line segment of the route intersects some line segment of the region. I use a variation of [this algorithm](https://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/), which uses the notion of an *orientation between two vectors* to determine this. In my variation of the algorithm I assume that one of the four considered orientations is non-zero, that is, that no route segment lies in the same line as some region segment.
 
@@ -50,7 +50,7 @@ Now, remember that actually we have item types and there might be more than one 
 
 So, our algorithm can be broken down into these two phases:
 
-1. Compute that *useful information* for all item types from the first to the last. Note that the greatest of the total benefits of the alternatives at the first step (namely not taking any items of the first item type, and for all items of this type, taking it) is the greatest, total benefit that can be achieved in this task altogether.
+1. Compute that *useful information* for all item types from the first to the last. Note that the greatest of the total benefits of the alternatives at the first step (namely not taking any items of the first type, and for all items of this type, taking it) is the greatest, total benefit that can be achieved in this task altogether.
 
 2. Use that information to extract the set of items of distinct types that achieves the greatest, achievable, total benefit. We have already seen how the second step works: Just look at all alternatives of a given item type, pick the one that promises the greatest, total benefit and do the corresponding action, that is, omit this item type or take that particular item of this type, and then continue up along the chain until after the last decision has been made.
 
@@ -66,6 +66,6 @@ Furthermore, consider the case when some budget is smaller than the minimum cost
 
 Going one more step further, notice that we don't need to subtract those multiples from the given total budget, if the greatest common divisor of all costs also divides the given total budget. But even if it doesn't, it is ok to omit the subtractions, because all they do is shift the budgets by some neglible amount.
 
-I don't explicitly compute all the combined costs of items, but instead I use the second approach. The *relevant budgets* are of the form: Minimum cost plus some multiple of the greatest common divisor of all costs, such that this sum stays at most the given total budget.
+I don't explicitly compute all the combined costs of items, but instead I use the second approach. The *relevant budgets* are of the form: Minimum cost plus some multiple of the greatest common divisor of all costs, such that this sum stays at most the given total budget. I take a cost's integer, that is the result of stripping everything after the comma.
 
 For every item type and every relevant budget, I compute the total benefits for all the possible decisions and then continuing along to the next item type. Hereby, the item types, meaning the routes, are ordered in the same way as they are read from disk. Thereafter, I recover the items to achieve the greatest, achievable, total benefit.
