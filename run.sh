@@ -1,3 +1,4 @@
 #!/bin/bash
 
-./main  < data/example.in > example.out
+./build.sh
+./main  < data/example.in
