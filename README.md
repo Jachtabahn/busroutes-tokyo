@@ -10,3 +10,5 @@ This program receives input over the standard input stream. This stream should s
 This program will output lines to the standard output stream where each line is a comma-separated string of
 1. **ROUTE_ID** is the id of a route from **ROUTE_GEOJSON**,
 2. **COUNT** is the number of wrapping buses to buy on this route.
+
+There is also [a detailed explanation](https://github.com/Jachtabahn/busroutes-tokyo/blob/master/explain/explain.md) of the employed optimization algorithm.
